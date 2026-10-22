@@ -1,5 +1,6 @@
 import { TFile, TFolder } from "obsidian";
 import { Ferramenta, ErroFerramenta } from "../tipos";
+import { descricaoEstadoSmart, estadoSmartConnections } from "./semantica";
 import {
 	argBooleano,
 	argNumero,
@@ -40,6 +41,7 @@ export const infoDoCofre: Ferramenta = {
 			arquivosNoTotal: todos.length,
 			pastas,
 			escritaHabilitada: configuracoes.permitirEscrita,
+			buscaSemantica: descricaoEstadoSmart(estadoSmartConnections()),
 			pastasOcultas: configuracoes.pastasExcluidas,
 			notaAtiva: app.workspace.getActiveFile()?.path ?? null,
 		});

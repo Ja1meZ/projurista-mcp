@@ -48,7 +48,8 @@ export class Despachante {
 	/** Ferramentas visíveis para o cliente, conforme a chave de escrita. */
 	ferramentasVisiveis(): Ferramenta[] {
 		const escrita = this.opcoes.escritaPermitida();
-		return this.opcoes.ferramentas.filter((f) => !f.escrita || escrita);
+		const contexto = this.opcoes.contexto();
+		return this.opcoes.ferramentas.filter((f) => (!f.escrita || escrita) && (!f.disponivel || f.disponivel(contexto)));
 	}
 
 	/** Trata texto bruto (uma linha ou um corpo HTTP). */
@@ -156,9 +157,12 @@ export class Despachante {
 
 	private instrucoes(): string {
 		const escrita = this.opcoes.escritaPermitida();
+		const semantica = this.ferramentasVisiveis().some((f) => f.name === "buscar_semantica");
 		return [
 			"Este servidor dá acesso a um cofre do Obsidian. Os caminhos são relativos à raiz do cofre e usam barra normal (/).",
-			"Para localizar conteúdo, prefira buscar_notas; para ler uma nota inteira, use ler_nota com o caminho devolvido pela busca.",
+			semantica
+				? "Para perguntas por tema ou conceito, use buscar_semantica; para palavras ou frases exatas, buscar_notas. Para ler uma nota inteira, use ler_nota com o caminho devolvido pela busca."
+				: "Para localizar conteúdo, prefira buscar_notas; para ler uma nota inteira, use ler_nota com o caminho devolvido pela busca.",
 			escrita
 				? "A escrita está habilitada: criar_nota, anexar_a_nota, substituir_nota, editar_frontmatter, mover_nota e excluir_nota alteram o cofre do usuário. Confirme antes de alterações amplas."
 				: "O servidor está em modo somente leitura; nenhuma ferramenta altera o cofre.",

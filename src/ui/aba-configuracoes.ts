@@ -2,6 +2,7 @@ import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type ProjuristaMcpPlugin from "../main";
 import { CONFIGURACOES_PADRAO } from "../configuracoes";
 import { ModalRegistro } from "./modais";
+import { descricaoEstadoSmart, estadoSmartConnections } from "../mcp/tools/semantica";
 
 export class AbaConfiguracoes extends PluginSettingTab {
 	constructor(app: App, private plugin: ProjuristaMcpPlugin) {
@@ -182,6 +183,7 @@ export class AbaConfiguracoes extends PluginSettingTab {
 			partes.push(this.plugin.configuracoes.permitirEscrita ? "leitura e escrita" : "somente leitura");
 			bloco.createSpan({ cls: "projurista-mcp-detalhe", text: partes.join(" · ") });
 		}
+		bloco.createSpan({ cls: "projurista-mcp-detalhe", text: descricaoEstadoSmart(estadoSmartConnections()) });
 		new Setting(containerEl)
 			.setName("Servidor MCP")
 			.setDesc(estado.ligado ? "O Claude pode se conectar a este cofre." : "Ligue o servidor para que o Claude possa se conectar.")

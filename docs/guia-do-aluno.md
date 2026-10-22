@@ -57,6 +57,17 @@ Por padrão o Claude só lê. Para que ele crie ou edite notas:
 
 Sugestão: mantenha desligado no dia a dia e ligue só quando for pedir uma tarefa de escrita. Notas excluídas pelo Claude vão para a lixeira, nunca são apagadas em definitivo.
 
+## Pesquisa por significado (opcional)
+
+A busca padrão encontra palavras. Para o Claude encontrar notas por assunto, mesmo com outras palavras:
+
+1. Instale o plugin "Smart Connections" pelo diretório da comunidade e ative-o.
+2. Na primeira vez ele baixa um modelo pequeno e cria o índice do cofre; acompanhe pela barra de status do Obsidian. Em cofres grandes, isso pode levar alguns minutos.
+3. Em Configurações → Projurista MCP, o alto da tela passa a mostrar "Smart Connections detectado: busca semântica disponível".
+4. Pergunte ao Claude, por exemplo: "Que notas do meu cofre tratam de responsabilidade por negativação indevida?". Ele usará a ferramenta `buscar_semantica`.
+
+Tudo roda no seu computador; nada é enviado para a internet.
+
 ## Esconder pastas do Claude
 
 Configurações → Projurista MCP → "Pastas ocultas". Escreva uma pasta por linha (por exemplo, `Sigiloso` ou `Clientes/Confidencial`). Essas pastas ficam invisíveis em todas as ferramentas.

@@ -63,6 +63,12 @@ Leitura (sempre ativas):
 | `links_da_nota` | Links de saída e backlinks |
 | `abrir_nota` | Abre uma nota na janela do Obsidian |
 
+Busca semântica (aparece só quando o plugin [Smart Connections](https://github.com/brianpetro/obsidian-smart-connections) está instalado, ativo e com modelo de embeddings carregado):
+
+| Ferramenta | O que faz |
+|---|---|
+| `buscar_semantica` | Encontra notas ou trechos por significado, mesmo sem coincidência de palavras; usa os embeddings locais do Smart Connections, sem enviar nada para fora |
+
 Escrita (só com a chave "Permitir escrita" ligada):
 
 | Ferramenta | O que faz |
@@ -74,6 +80,10 @@ Escrita (só com a chave "Permitir escrita" ligada):
 | `editar_frontmatter` | Define ou remove propriedades |
 | `mover_nota` | Move ou renomeia, atualizando os links |
 | `excluir_nota` | Envia para a lixeira (nunca apaga em definitivo) |
+
+## Busca semântica com o Smart Connections
+
+A busca padrão (`buscar_notas`) é por palavras. Para pesquisar por significado, instale o plugin Smart Connections pelo diretório da comunidade, deixe-o criar os embeddings do cofre (modelo local, sem chave de API) e pronto: o Projurista MCP detecta o Smart Connections e passa a oferecer `buscar_semantica` ao Claude. O estado aparece no alto das configurações do plugin. Não há configuração adicional, e o Smart Connections é opcional: sem ele, tudo o mais continua funcionando.
 
 ## Segurança
 

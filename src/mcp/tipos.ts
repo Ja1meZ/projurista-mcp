@@ -66,6 +66,8 @@ export interface Ferramenta {
 	description: string;
 	inputSchema: EsquemaJson;
 	escrita?: boolean;
+	/** Quando definido, a ferramenta só é anunciada se devolver true (ex.: depende de outro plugin). */
+	disponivel?: (contexto: ContextoFerramenta) => boolean;
 	executar(argumentos: Record<string, unknown>, contexto: ContextoFerramenta): Promise<ResultadoFerramenta>;
 }
 

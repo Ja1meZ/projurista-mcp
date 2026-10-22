@@ -2,5 +2,6 @@ import { Ferramenta } from "../tipos";
 import { FERRAMENTAS_LEITURA } from "./leitura";
 import { FERRAMENTAS_BUSCA } from "./busca";
 import { FERRAMENTAS_ESCRITA } from "./escrita";
+import { FERRAMENTAS_SEMANTICA } from "./semantica";
 
-export const TODAS_AS_FERRAMENTAS: Ferramenta[] = [...FERRAMENTAS_LEITURA, ...FERRAMENTAS_BUSCA, ...FERRAMENTAS_ESCRITA];
+export const TODAS_AS_FERRAMENTAS: Ferramenta[] = [...FERRAMENTAS_LEITURA, ...FERRAMENTAS_BUSCA, ...FERRAMENTAS_SEMANTICA, ...FERRAMENTAS_ESCRITA];
