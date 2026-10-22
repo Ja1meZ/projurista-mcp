@@ -26,7 +26,7 @@ export function montarMcpb(parametros: ParametrosMcpb): Uint8Array {
 			"Esta extensão é apenas uma ponte: ela conversa com o plugin Projurista MCP em execução dentro do Obsidian (127.0.0.1). O Obsidian precisa estar aberto com o plugin ativo.",
 		author: { name: "Projurista", url: "https://projurista.com.br" },
 		license: "MIT",
-		repository: { type: "git", url: "https://github.com/projurista/projurista-mcp" },
+		repository: { type: "git", url: "https://github.com/Ja1meZ/projurista-mcp" },
 		keywords: ["obsidian", "notas", "cofre", "projurista"],
 		compatibility: {
 			platforms: ["darwin", "win32", "linux"],

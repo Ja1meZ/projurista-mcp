@@ -19,12 +19,12 @@ Gratuito, sem conta, sem doações, sem telemetria. Feito pela [Projurista](http
 ### Pelo BRAT (enquanto o plugin não aparece no diretório)
 
 1. Instale o plugin [BRAT](https://github.com/TfTHacker/obsidian42-brat) pelo diretório da comunidade.
-2. Em BRAT → Add beta plugin, informe `projurista/projurista-mcp`.
+2. Em BRAT → Add beta plugin, informe `Ja1meZ/projurista-mcp`.
 3. Ative o Projurista MCP em Plugins de terceiros.
 
 ### Manual
 
-Baixe `main.js`, `manifest.json` e `styles.css` da [última release](https://github.com/projurista/projurista-mcp/releases), copie para `<seu cofre>/.obsidian/plugins/projurista-mcp/` e ative o plugin.
+Baixe `main.js`, `manifest.json` e `styles.css` da [última release](https://github.com/Ja1meZ/projurista-mcp/releases), copie para `<seu cofre>/.obsidian/plugins/projurista-mcp/` e ative o plugin.
 
 ## Conectar ao Claude Desktop (um clique)
 

@@ -20,7 +20,7 @@ Pelo diretório da comunidade:
 Pelo BRAT, se o plugin ainda não aparecer na busca:
 
 1. Instale o plugin "BRAT" pelo mesmo diretório e ative-o.
-2. Configurações → BRAT → "Add beta plugin" → cole `projurista/projurista-mcp` → "Add plugin".
+2. Configurações → BRAT → "Add beta plugin" → cole `Ja1meZ/projurista-mcp` → "Add plugin".
 3. Em Plugins de terceiros, ative o "Projurista MCP".
 
 ## Passo 2: conectar ao Claude Desktop

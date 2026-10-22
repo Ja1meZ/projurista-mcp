@@ -4,7 +4,7 @@ import builtins from "builtin-modules";
 
 const banner = `/*
 Projurista MCP — plugin para Obsidian.
-Código-fonte: https://github.com/projurista/projurista-mcp
+Código-fonte: https://github.com/Ja1meZ/projurista-mcp
 Compilado com esbuild; se quiser ler o código, abra o repositório.
 */
 `;
