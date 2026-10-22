@@ -135,6 +135,12 @@ Projurista MCP runs a local [MCP](https://modelcontextprotocol.io) server inside
 - Binds to `127.0.0.1` only; every connection requires a generated token; the HTTP transport validates `Origin`.
 - "Connect to Claude Desktop" writes an entry to `claude_desktop_config.json` (after confirmation, with a backup) that uses only OS-provided programs as a stdio bridge: `/bin/sh` + `nc` on macOS, `powershell.exe` on Windows. Alternatively export a `.mcpb` extension (Claude Desktop ships its own Node.js) or copy the Claude Code command (Streamable HTTP with bearer token).
 - Tool names and descriptions are in Brazilian Portuguese, the language of the plugin's audience; any MCP client works with them.
-- Disclosures: local ports on loopback only; reads and writes the Claude Desktop config file outside the vault on explicit user action; writes `ponte.ps1` inside the plugin folder; no telemetry, no ads, no payment; bundles [fflate](https://github.com/101arrowz/fflate) (MIT).
+### Disclosures (per the Obsidian developer policies)
+
+- Network: the plugin opens local TCP and HTTP ports bound to `127.0.0.1` only, so MCP clients on the same computer can reach the vault. It never connects to the internet or to remote services.
+- Files outside the vault (Node.js `fs` module): used only when you click "Connect to Claude Desktop" or "Undo", to read, back up (`.bak-<timestamp>`) and write `claude_desktop_config.json` in Claude Desktop's config folder (`~/Library/Application Support/Claude/` on macOS, `%APPDATA%\Claude\` on Windows), always after an explicit confirmation dialog that shows the path and the entry to be written; and when you click "Export .mcpb", to save the bundle at the location you choose (default: Downloads). No other file outside the vault is read or written.
+- Files inside the vault outside the Vault API: `ponte.ps1` is written into the plugin's own folder via the vault adapter; it is the Windows bridge script.
+- No telemetry, no ads, no payment, no account.
+- Third-party code: [fflate](https://github.com/101arrowz/fflate) (MIT), bundled to build the `.mcpb` zip.
 
 License: MIT.
