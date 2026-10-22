@@ -70,7 +70,7 @@ export class AbaConfiguracoes extends PluginSettingTab {
 			detalhes.push(`${estado.conexoes} ${estado.conexoes === 1 ? "sessão ativa" : "sessões ativas"}`);
 			detalhes.push(this.plugin.configuracoes.permitirEscrita ? "leitura e escrita" : "somente leitura");
 		}
-		const descricaoStatus = `${estado.ligado ? "Servidor ligado." : "Servidor desligado: ligue-o para que o Claude possa se conectar."} ${detalhes.join(" · ")} ${descricaoEstadoSmart(estadoSmartConnections())}`.trim();
+		const descricaoStatus = [estado.ligado ? "Servidor ligado." : "Servidor desligado: ligue-o para que o Claude possa se conectar.", detalhes.length ? detalhes.join(" · ") + "." : "", descricaoEstadoSmart(estadoSmartConnections())].filter((p) => p).join(" ");
 		const validarPorta = (valor: number): string | void => {
 			if (!Number.isInteger(valor) || valor < 1024 || valor > 65535) return "Informe uma porta entre 1024 e 65535.";
 		};

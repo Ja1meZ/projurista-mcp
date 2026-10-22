@@ -76,5 +76,5 @@
 
 .projurista-mcp-token input {
 	font-family: var(--font-monospace);
-	width: 100%;
+	min-width: 20em;
 }

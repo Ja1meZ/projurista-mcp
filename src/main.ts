@@ -80,7 +80,13 @@ export default class ProjuristaMcpPlugin extends Plugin {
 
 	private async carregarConfiguracoes(): Promise<void> {
 		const salvas = ((await this.loadData()) ?? {}) as Partial<ConfiguracoesProjurista>;
-		this.configuracoes = { ...CONFIGURACOES_PADRAO, ...salvas, pastasExcluidas: salvas.pastasExcluidas ?? [...CONFIGURACOES_PADRAO.pastasExcluidas] };
+		const implicitas = new Set([this.app.vault.configDir, ".trash"]);
+		this.configuracoes = {
+			...CONFIGURACOES_PADRAO,
+			...salvas,
+			// A pasta de configuração e a lixeira são sempre ocultas; versões antigas as gravavam na lista.
+			pastasExcluidas: (salvas.pastasExcluidas ?? []).filter((p) => !implicitas.has(p.trim())),
+		};
 		if (!this.configuracoes.token) {
 			this.configuracoes.token = gerarToken();
 			await this.salvarConfiguracoes();

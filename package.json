@@ -1,6 +1,6 @@
 {
   "name": "projurista-mcp",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Servidor MCP local do seu cofre do Obsidian, com conexão ao Claude Desktop em um clique.",
   "main": "main.js",
   "private": true,
