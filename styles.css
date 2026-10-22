@@ -1,0 +1,80 @@
+.projurista-mcp-status {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+	align-items: center;
+	padding: var(--size-4-2) var(--size-4-3);
+	margin-bottom: var(--size-4-3);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+}
+
+.projurista-mcp-status .projurista-mcp-luz {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background-color: var(--text-faint);
+}
+
+.projurista-mcp-status.ligado .projurista-mcp-luz {
+	background-color: var(--color-green);
+}
+
+.projurista-mcp-status .projurista-mcp-detalhe {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.projurista-mcp-modal p {
+	margin: 0 0 var(--size-4-2) 0;
+}
+
+.projurista-mcp-modal ol {
+	padding-left: var(--size-4-5);
+}
+
+.projurista-mcp-modal li {
+	margin-bottom: var(--size-4-1);
+}
+
+.projurista-mcp-codigo {
+	display: block;
+	white-space: pre-wrap;
+	word-break: break-all;
+	padding: var(--size-4-2);
+	margin: var(--size-4-2) 0;
+	border-radius: var(--radius-s);
+	background-color: var(--background-primary-alt);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	max-height: 320px;
+	overflow: auto;
+}
+
+.projurista-mcp-botoes {
+	display: flex;
+	gap: var(--size-4-2);
+	justify-content: flex-end;
+	margin-top: var(--size-4-3);
+}
+
+.projurista-mcp-registro {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	white-space: pre-wrap;
+	max-height: 60vh;
+	overflow: auto;
+}
+
+.projurista-mcp-registro .erro {
+	color: var(--text-error);
+}
+
+.projurista-mcp-registro .aviso {
+	color: var(--text-warning);
+}
+
+.projurista-mcp-token input {
+	font-family: var(--font-monospace);
+	width: 100%;
+}
