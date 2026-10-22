@@ -50,7 +50,7 @@ function prepararBuscador(termo: string): Buscador {
 	const simples = prepareSimpleSearch(termo);
 	return (texto) => {
 		const r = simples(texto);
-		return r ? { score: r.score, matches: r.matches as Array<[number, number]> } : null;
+		return r ? { score: r.score, matches: r.matches } : null;
 	};
 }
 

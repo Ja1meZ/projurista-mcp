@@ -55,7 +55,7 @@ export class AbaConfiguracoes extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Pastas ocultas")
-			.setDesc("Uma por linha. Essas pastas ficam invisíveis para o Claude. As pastas .obsidian e .trash são sempre ocultas.")
+			.setDesc(`Uma por linha. Essas pastas ficam invisíveis para o Claude. As pastas ${this.app.vault.configDir} e .trash são sempre ocultas.`)
 			.addTextArea((t) =>
 				t
 					.setPlaceholder("Sigiloso\nPessoal/Financeiro")
@@ -141,7 +141,7 @@ export class AbaConfiguracoes extends PluginSettingTab {
 				await navigator.clipboard.writeText(this.plugin.configuracoes.token);
 				new Notice("Token copiado.");
 			}))
-			.addButton((b) => b.setButtonText("Gerar novo").setWarning().onClick(async () => {
+			.addButton((b) => b.setButtonText("Gerar novo").setClass("mod-warning").onClick(async () => {
 				await this.plugin.gerarNovoToken();
 				this.display();
 			}));

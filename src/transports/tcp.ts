@@ -98,7 +98,7 @@ export class TransporteTcp {
 
 		let buffer = "";
 		let fila: Promise<void> = Promise.resolve();
-		const temporizador = setTimeout(() => {
+		const temporizador = window.setTimeout(() => {
 			if (!socket.autenticado) {
 				this.opcoes.registro.aviso("Conexão TCP encerrada: token não enviado em 10 segundos.");
 				socket.destroy();
@@ -127,7 +127,7 @@ export class TransporteTcp {
 			}
 		});
 		socket.on("close", () => {
-			clearTimeout(temporizador);
+			window.clearTimeout(temporizador);
 			this.conexoes.delete(socket);
 			if (socket.autenticado) this.opcoes.registro.info("Sessão TCP encerrada.");
 		});

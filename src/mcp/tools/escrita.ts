@@ -145,7 +145,7 @@ export const editarFrontmatter: Ferramenta = {
 		if (Object.keys(definir).length === 0 && remover.length === 0) {
 			throw new ErroFerramenta("Informe \"definir\" ou \"remover\".");
 		}
-		await contexto.app.fileManager.processFrontMatter(arquivo, (fm) => {
+		await contexto.app.fileManager.processFrontMatter(arquivo, (fm: Record<string, unknown>) => {
 			for (const [chave, valor] of Object.entries(definir)) fm[chave] = valor;
 			for (const chave of remover) delete fm[chave];
 		});

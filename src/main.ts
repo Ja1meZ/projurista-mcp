@@ -72,8 +72,8 @@ export default class ProjuristaMcpPlugin extends Plugin {
 		});
 	}
 
-	async onunload(): Promise<void> {
-		await this.pararServidor(true);
+	onunload(): void {
+		void this.pararServidor(true);
 	}
 
 	// ---------------------------------------------------------------- configurações
@@ -368,7 +368,7 @@ export default class ProjuristaMcpPlugin extends Plugin {
 		return new Promise((resolver) => {
 			const socket = net.connect({ host: "127.0.0.1", port: this.tcp.portaAtual });
 			let resposta = "";
-			const temporizador = setTimeout(() => {
+			const temporizador = window.setTimeout(() => {
 				socket.destroy();
 				resolver("TCP: sem resposta em 5 segundos.");
 			}, 5000);
@@ -380,13 +380,13 @@ export default class ProjuristaMcpPlugin extends Plugin {
 			socket.on("data", (pedaco: string) => {
 				resposta += pedaco;
 				if (resposta.includes("\n")) {
-					clearTimeout(temporizador);
+					window.clearTimeout(temporizador);
 					socket.end();
 					resolver(resposta.includes('"result"') ? `TCP: ok na porta ${this.tcp.portaAtual}.` : `TCP: resposta inesperada: ${resposta.trim()}`);
 				}
 			});
 			socket.on("error", (erro) => {
-				clearTimeout(temporizador);
+				window.clearTimeout(temporizador);
 				resolver(`TCP: falha (${erro.message}).`);
 			});
 		});

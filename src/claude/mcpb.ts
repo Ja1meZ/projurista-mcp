@@ -64,9 +64,10 @@ export async function salvarMcpb(conteudo: Uint8Array, nomeSugerido: string): Pr
 	const destinoPadrao = path.join(os.homedir(), "Downloads", nomeSugerido);
 	let destino: string | null = null;
 	try {
-		// O Obsidian expõe o módulo electron ao renderer; o diálogo nativo é opcional.
-		// eslint-disable-next-line @typescript-eslint/no-var-requires
-		const electron = require("electron") as { remote?: { dialog?: { showSaveDialog: (o: unknown) => Promise<{ canceled: boolean; filePath?: string }> } } };
+		// O Obsidian expõe o módulo electron ao renderer por window.require; o diálogo nativo é opcional.
+		type Electron = { remote?: { dialog?: { showSaveDialog: (o: unknown) => Promise<{ canceled: boolean; filePath?: string }> } } };
+		const carregar = (window as unknown as { require?: (modulo: string) => unknown }).require;
+		const electron = typeof carregar === "function" ? (carregar("electron") as Electron | undefined) : undefined;
 		const dialogo = electron?.remote?.dialog;
 		if (dialogo) {
 			const resposta = await dialogo.showSaveDialog({

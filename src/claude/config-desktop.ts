@@ -123,8 +123,8 @@ export function gravarNoClaudeDesktop(parametros: ParametrosConexao, opcoes: { c
 		fs.copyFileSync(caminho, copiaDeSeguranca);
 		if (texto.trim() !== "") {
 			try {
-				const lido = JSON.parse(texto);
-				if (typeof lido === "object" && lido !== null && !Array.isArray(lido)) atual = lido;
+				const lido = lerObjetoJson(texto);
+				if (lido) atual = lido;
 				else corrompido = true;
 			} catch {
 				corrompido = true;
@@ -145,12 +145,13 @@ export function gravarNoClaudeDesktop(parametros: ParametrosConexao, opcoes: { c
 export function removerDoClaudeDesktop(nomeServidor: string, plataforma: Plataforma = plataformaAtual()): boolean {
 	const caminho = caminhoConfigClaude(plataforma);
 	if (!caminho || !fs.existsSync(caminho)) return false;
-	let atual: Record<string, unknown>;
+	let atual: Record<string, unknown> | null;
 	try {
-		atual = JSON.parse(fs.readFileSync(caminho, "utf8"));
+		atual = lerObjetoJson(fs.readFileSync(caminho, "utf8"));
 	} catch {
 		return false;
 	}
+	if (!atual) return false;
 	const servidores = atual.mcpServers;
 	if (typeof servidores !== "object" || servidores === null || !(nomeServidor in (servidores as Record<string, unknown>))) return false;
 	fs.copyFileSync(caminho, `${caminho}.bak-${carimbo()}`);
@@ -164,14 +165,22 @@ export function estadoNoClaudeDesktop(parametros: ParametrosConexao, plataforma:
 	const caminho = caminhoConfigClaude(plataforma);
 	if (!caminho || !fs.existsSync(caminho)) return "ausente";
 	try {
-		const atual = JSON.parse(fs.readFileSync(caminho, "utf8"));
-		const entrada = atual?.mcpServers?.[parametros.nomeServidor];
+		const atual = lerObjetoJson(fs.readFileSync(caminho, "utf8"));
+		const servidores = atual && typeof atual.mcpServers === "object" && atual.mcpServers !== null ? (atual.mcpServers as Record<string, unknown>) : null;
+		const entrada = servidores?.[parametros.nomeServidor];
 		if (!entrada) return "ausente";
 		const esperada = entradaServidor(parametros, plataforma);
 		return JSON.stringify(entrada) === JSON.stringify(esperada) ? "atualizado" : "desatualizado";
 	} catch {
 		return "ausente";
 	}
+}
+
+/** Desserializa JSON e devolve o objeto, ou null se o texto não for um objeto JSON. Lança em JSON inválido. */
+function lerObjetoJson(texto: string): Record<string, unknown> | null {
+	const lido: unknown = JSON.parse(texto);
+	if (typeof lido === "object" && lido !== null && !Array.isArray(lido)) return lido as Record<string, unknown>;
+	return null;
 }
 
 function carimbo(): string {

@@ -1,8 +1,8 @@
 {
 	"id": "projurista-mcp",
 	"name": "Projurista MCP",
-	"version": "0.2.0",
-	"minAppVersion": "1.6.0",
+	"version": "0.2.1",
+	"minAppVersion": "1.6.6",
 	"description": "Expose your vault to Claude Desktop and Claude Code through a local MCP server, with one-click setup and no Node.js install.",
 	"author": "Projurista",
 	"authorUrl": "https://projurista.com.br",

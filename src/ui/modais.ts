@@ -77,9 +77,8 @@ export class ModalPassos extends Modal {
 		const botoes = contentEl.createDiv({ cls: "projurista-mcp-botoes" });
 		if (this.opcoes.textoParaCopiar) {
 			const copiar = botoes.createEl("button", { text: this.opcoes.rotuloCopiar ?? "Copiar" });
-			copiar.addEventListener("click", async () => {
-				await navigator.clipboard.writeText(this.opcoes.textoParaCopiar ?? "");
-				new Notice("Copiado para a área de transferência.");
+			copiar.addEventListener("click", () => {
+				void navigator.clipboard.writeText(this.opcoes.textoParaCopiar ?? "").then(() => new Notice("Copiado para a área de transferência."));
 			});
 		}
 		const fechar = botoes.createEl("button", { text: "Fechar", cls: "mod-cta" });
