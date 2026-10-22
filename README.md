@@ -4,7 +4,7 @@ Conecte o Claude Desktop e o Claude Code ao seu cofre do Obsidian com um clique,
 
 O plugin roda um servidor [MCP](https://modelcontextprotocol.io) (Model Context Protocol) dentro do próprio Obsidian. O Claude passa a enxergar suas notas como ferramentas: listar pastas, ler notas, pesquisar, consultar tags e links e, se você permitir, criar e editar notas.
 
-Gratuito, sem conta, sem doações, sem telemetria. Feito pela [Projurista](https://projurista.com.br) para quem usa inteligência artificial aplicada ao Direito, mas serve a qualquer cofre.
+Gratuito, sem conta, sem doações, sem telemetria. Feito pela [Projurista](https://www.instagram.com/projurista/) para quem usa inteligência artificial aplicada ao Direito, mas serve a qualquer cofre. Artigos e novidades no [Substack de Jaime Zacarias](https://substack.com/@jaimezacariasprojurista).
 
 [English summary below](#english).
 
