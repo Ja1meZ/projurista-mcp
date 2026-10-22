@@ -1,5 +1,5 @@
 import { App, CachedMetadata, TFile, TFolder, getAllTags, normalizePath } from "obsidian";
-import { PASTAS_SEMPRE_EXCLUIDAS } from "../../configuracoes";
+import { pastasSempreExcluidas } from "../../configuracoes";
 import { ContextoFerramenta, ErroFerramenta, ResultadoFerramenta } from "../tipos";
 
 export function texto(conteudo: string): ResultadoFerramenta {
@@ -46,8 +46,8 @@ export function normalizarCaminho(caminho: string): string {
 	return limpo;
 }
 
-function prefixosExcluidos(contexto: ContextoFerramenta): string[] {
-	const lista = [...PASTAS_SEMPRE_EXCLUIDAS, ...contexto.configuracoes.pastasExcluidas];
+export function prefixosExcluidos(contexto: ContextoFerramenta): string[] {
+	const lista = [...pastasSempreExcluidas(contexto.app.vault.configDir), ...contexto.configuracoes.pastasExcluidas];
 	return lista
 		.map((p) => p.trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""))
 		.filter((p) => p.length > 0);

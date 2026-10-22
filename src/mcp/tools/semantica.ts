@@ -1,6 +1,5 @@
 import { Ferramenta, ErroFerramenta, ContextoFerramenta } from "../tipos";
-import { argBooleano, argNumero, argTexto, estaExcluido, normalizarCaminho, textoJson } from "./comum";
-import { PASTAS_SEMPRE_EXCLUIDAS } from "../../configuracoes";
+import { argBooleano, argNumero, argTexto, estaExcluido, normalizarCaminho, prefixosExcluidos as prefixosBase, textoJson } from "./comum";
 
 /**
  * Integração opcional com o plugin Smart Connections (embeddings locais).
@@ -107,10 +106,7 @@ function caminhoDoItem(item: ItemSmart): string {
 }
 
 function prefixosExcluidos(contexto: ContextoFerramenta): string[] {
-	return [...PASTAS_SEMPRE_EXCLUIDAS, ...contexto.configuracoes.pastasExcluidas]
-		.map((p) => p.trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""))
-		.filter((p) => p.length > 0)
-		.map((p) => p + "/");
+	return prefixosBase(contexto).map((p) => p + "/");
 }
 
 export const buscarSemantica: Ferramenta = {

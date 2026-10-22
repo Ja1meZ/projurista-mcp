@@ -1,6 +1,6 @@
 {
   "name": "projurista-mcp",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Servidor MCP local do seu cofre do Obsidian, com conexão ao Claude Desktop em um clique.",
   "main": "main.js",
   "private": true,
@@ -19,7 +19,6 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^20.11.0",
-    "builtin-modules": "^3.3.0",
     "esbuild": "^0.21.5",
     "eslint": "^10.13.0",
     "eslint-plugin-obsidianmd": "^0.4.2",

@@ -26,12 +26,15 @@ export const CONFIGURACOES_PADRAO: ConfiguracoesProjurista = {
 	token: "",
 	permitirEscrita: false,
 	iniciarComObsidian: true,
-	pastasExcluidas: [".obsidian", ".trash"],
+	pastasExcluidas: [],
 	nomeServidor: "",
 	limiteCaracteres: 200_000,
 };
 
-export const PASTAS_SEMPRE_EXCLUIDAS = [".obsidian", ".trash"];
+/** Pastas sempre invisíveis: a pasta de configuração do Obsidian (que o usuário pode renomear) e a lixeira. */
+export function pastasSempreExcluidas(configDir: string): string[] {
+	return [configDir, ".trash"];
+}
 
 /** Converte o nome do cofre em um identificador seguro para o Claude Desktop. */
 export function gerarSlug(nome: string): string {

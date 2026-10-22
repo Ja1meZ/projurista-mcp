@@ -42,7 +42,7 @@ export const infoDoCofre: Ferramenta = {
 			pastas,
 			escritaHabilitada: configuracoes.permitirEscrita,
 			buscaSemantica: descricaoEstadoSmart(estadoSmartConnections()),
-			pastasOcultas: configuracoes.pastasExcluidas,
+			pastasOcultas: [app.vault.configDir, ".trash", ...configuracoes.pastasExcluidas],
 			notaAtiva: app.workspace.getActiveFile()?.path ?? null,
 		});
 	},
