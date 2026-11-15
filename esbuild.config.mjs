@@ -44,33 +44,41 @@ const context = await esbuild.context({
 	minify: false,
 });
 
-/** Servidor avulso de súmulas: um arquivo Node, sem dependências (dist/projurista-sumulas.mjs). */
+/** Servidores avulsos: um arquivo Node cada, sem dependências (dist/projurista-sumulas.mjs e dist/projurista-precedentes.mjs). */
 async function compilarAvulso() {
 	const { version } = JSON.parse(readFileSync("package.json", "utf8"));
-	await esbuild.build({
-		banner: { js: "#!/usr/bin/env node\n// Projurista Súmulas — servidor MCP avulso. Código-fonte: https://github.com/Ja1meZ/projurista-mcp" },
-		entryPoints: ["src/avulso/servidor-stdio.ts"],
-		bundle: true,
-		platform: "node",
-		format: "esm",
-		target: "node18",
-		define: { __VERSAO_PROJURISTA__: JSON.stringify(version) },
-		logLevel: "info",
-		outfile: "dist/projurista-sumulas.mjs",
-	});
+	const alvos = [
+		["Súmulas", "src/avulso/servidor-stdio.ts", "dist/projurista-sumulas.mjs"],
+		["Precedentes", "src/avulso/servidor-precedentes.ts", "dist/projurista-precedentes.mjs"],
+	];
+	for (const [nome, entrada, saida] of alvos) {
+		await esbuild.build({
+			banner: { js: `#!/usr/bin/env node\n// Projurista ${nome} — servidor MCP avulso. Código-fonte: https://github.com/Ja1meZ/projurista-mcp` },
+			entryPoints: [entrada],
+			bundle: true,
+			platform: "node",
+			format: "esm",
+			target: "node18",
+			define: { __VERSAO_PROJURISTA__: JSON.stringify(version) },
+			logLevel: "info",
+			outfile: saida,
+		});
+	}
 }
 
-/** Núcleo de súmulas compilado só para os testes (node --test). */
+/** Núcleos de súmulas e de precedentes compilados só para os testes (node --test). */
 async function compilarTestes() {
-	await esbuild.build({
-		entryPoints: ["src/sumulas/index.ts"],
-		bundle: true,
-		platform: "node",
-		format: "esm",
-		target: "node18",
-		logLevel: "warning",
-		outfile: "dist/nucleo-sumulas.mjs",
-	});
+	for (const nome of ["sumulas", "precedentes"]) {
+		await esbuild.build({
+			entryPoints: [`src/${nome}/index.ts`],
+			bundle: true,
+			platform: "node",
+			format: "esm",
+			target: "node18",
+			logLevel: "warning",
+			outfile: `dist/nucleo-${nome}.mjs`,
+		});
+	}
 }
 
 if (modo === "testes") {

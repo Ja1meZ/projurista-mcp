@@ -32,9 +32,10 @@ jobs:
             manifest.json
             styles.css
             dist/projurista-sumulas.mjs
+            dist/projurista-precedentes.mjs
       - name: Criar release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
-          gh release create "$tag" --title "$tag" --generate-notes main.js manifest.json styles.css dist/projurista-sumulas.mjs
+          gh release create "$tag" --title "$tag" --generate-notes main.js manifest.json styles.css dist/projurista-sumulas.mjs dist/projurista-precedentes.mjs

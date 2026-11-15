@@ -77,6 +77,14 @@ Súmulas (ligadas por padrão; desligue em "Ferramentas de súmulas" se não qui
 | `buscar_sumulas` | Pesquisa súmulas por palavras do enunciado, sem diferenciar acentos |
 | `verificar_citacoes_sumulas` | Confere todas as citações de súmula de um texto, palavra por palavra, e alerta para súmula cancelada, revogada ou superada |
 
+Precedentes qualificados do STJ (ligadas por padrão; desligue em "Ferramentas de precedentes qualificados" se não quiser):
+
+| Ferramenta | O que faz |
+| --- | --- |
+| `obter_precedente` | Devolve a tese literal de um tema repetitivo, IAC ou tema de relevância do STJ, com a questão julgada, a situação, a ordem de suspensão, os paradigmas e as anotações do tribunal |
+| `buscar_precedentes` | Pesquisa os precedentes pela questão jurídica e separa as teses transitadas em julgado do que ainda está afetado, sem trânsito ou revisado |
+| `verificar_citacoes_precedentes` | Confere todas as referências a tema e a IAC do STJ em um texto: existência, situação e transcrição da tese, palavra por palavra |
+
 Escrita (só com a chave "Permitir escrita" ligada):
 
 | Ferramenta | O que faz |
@@ -115,6 +123,41 @@ claude mcp add projurista-sumulas -- node /caminho/para/projurista-sumulas.mjs
 
 O mesmo arquivo serve na linha de comando, para scripts e ganchos: `node projurista-sumulas.mjs verificar minuta.txt` imprime o relatório e termina com código 1 quando o veredito é "não verificado"; `node projurista-sumulas.mjs obter STJ 7` imprime o enunciado.
 
+## Precedentes qualificados do STJ: saber se o caso tem tema aplicável
+
+O plugin traz embutida a planilha oficial de precedentes qualificados do STJ (temas repetitivos, incidentes de assunção de competência, temas de relevância, controvérsias e SIRDR), com a questão submetida a julgamento, a tese, a situação, a ordem de suspensão, os processos paradigma e as anotações do tribunal. Na base de 14/11/2026 são 2.348 registros, dos quais 1.038 com tese transitada em julgado.
+
+- Para saber se há precedente: o Claude chama `buscar_precedentes` com a questão jurídica do caso. A busca é por palavras da questão e da tese, feita por código: a mesma consulta devolve sempre o mesmo resultado. O retorno vem em dois blocos: as teses transitadas em julgado, que podem ser aplicadas, e um bloco de atenção com temas afetados (e a suspensão determinada), teses ainda sem trânsito e teses revisadas.
+- Para citar: `obter_precedente` devolve a tese literal e a citação pronta.
+- Para conferir: `verificar_citacoes_precedentes` recebe o texto inteiro, localiza as referências ("Tema 1.150 do STJ", "Tema Repetitivo n. 106", "IAC 5 do STJ"), confere se o precedente existe, qual a situação e se a tese transcrita confere com a oficial. Quebras de linha e espaços não contam como diferença; palavra trocada, sim. Tema cancelado citado sem ressalva e número que não corresponde ao texto reprovam o documento.
+
+Limites que convém conhecer:
+
+- A busca acha precedentes pelo vocabulário; decidir se a tese se aplica aos fatos do processo continua sendo trabalho de quem analisa. Não achar resultado não prova que não exista precedente: repita com outra formulação.
+- Só a tese transitada em julgado é tratada como definitiva. As demais vêm sempre com a situação e o aviso.
+- A base cobre só o STJ. Tema de repercussão geral do STF é relacionado no relatório como fora do escopo, sem conferência.
+- Os avisos (modulação de efeitos, remissão a tema do STF, menção a revisão ou superação) são tirados por regra das anotações do STJ: indicam que é preciso ler a anotação, não a substituem.
+- A base é uma fotografia da planilha na data indicada nas configurações do plugin.
+
+### Servidor avulso e atualização da base
+
+Cada release traz `projurista-precedentes.mjs`, um arquivo único com as mesmas três ferramentas (requer Node.js 18 ou mais novo):
+
+```
+claude mcp add projurista-precedentes -- node /caminho/para/projurista-precedentes.mjs
+```
+
+Na linha de comando: `node projurista-precedentes.mjs buscar "prescrição PASEP saque"`, `node projurista-precedentes.mjs obter tema 1150` e `node projurista-precedentes.mjs verificar minuta.txt` (termina com código 1 quando o veredito é "não verificado").
+
+Para atualizar a base, exporte a planilha em https://processo.stj.jus.br/repetitivos/temas_repetitivos/ e rode, na pasta do repositório:
+
+```
+python3 scripts/exportar-base-precedentes-stj.py exportacao.xlsx --data-fonte AAAA-MM-DD
+npm test && npm run build
+```
+
+O script só usa a biblioteca padrão do Python, copia os textos sem alterá-los e grava ao lado um relatório com o que mudou em relação à base anterior (temas novos, mudança de situação, tese alterada).
+
 ## Busca semântica com o Smart Connections
 
 A busca padrão (`buscar_notas`) é por palavras. Para pesquisar por significado, instale o plugin Smart Connections pelo diretório da comunidade, deixe-o criar os embeddings do cofre (modelo local, sem chave de API) e pronto: o Projurista MCP detecta o Smart Connections e passa a oferecer `buscar_semantica` ao Claude. O estado aparece no alto das configurações do plugin. Não há configuração adicional, e o Smart Connections é opcional: sem ele, tudo o mais continua funcionando.
@@ -135,7 +178,7 @@ A busca padrão (`buscar_notas`) é por palavras. Para pesquisar por significado
 - Dentro do cofre, o plugin grava `ponte.ps1` na própria pasta (`.obsidian/plugins/projurista-mcp/`), usado apenas no Windows.
 - Sem telemetria, sem anúncios, sem pagamento, sem conta.
 - Código de terceiros: [fflate](https://github.com/101arrowz/fflate) (MIT), usado para montar o pacote `.mcpb`.
-- Dados embutidos: enunciados de súmulas do STF, do STJ e do TJPE, textos oficiais de domínio público, incluídos no próprio `main.js`. As ferramentas de súmulas não acessam a rede nem o cofre.
+- Dados embutidos: enunciados de súmulas do STF, do STJ e do TJPE, textos oficiais de domínio público, incluídos no próprio `main.js`. As ferramentas de súmulas não acessam a rede nem o cofre. O mesmo vale para a planilha oficial de precedentes qualificados do STJ (temas repetitivos e IAC) e suas três ferramentas.
 
 ## Problemas comuns
 
@@ -177,6 +220,6 @@ Projurista MCP runs a local [MCP](https://modelcontextprotocol.io) server inside
 - Files inside the vault outside the Vault API: `ponte.ps1` is written into the plugin's own folder via the vault adapter; it is the Windows bridge script.
 - No telemetry, no ads, no payment, no account.
 - Third-party code: [fflate](https://github.com/101arrowz/fflate) (MIT), bundled to build the `.mcpb` zip.
-- Bundled data: the official texts of Brazilian court precedent statements ("súmulas" of STF, STJ and TJPE, public-domain official acts) are embedded in `main.js`. The three súmula tools (`obter_sumula`, `buscar_sumulas`, `verificar_citacoes_sumulas`) look them up and check citations in a text deterministically; they use neither the network nor the vault. That data set is why `main.js` is about 1.6 MB.
+- Bundled data: the official texts of Brazilian court precedent statements ("súmulas" of STF, STJ and TJPE, public-domain official acts) are embedded in `main.js`. The three súmula tools (`obter_sumula`, `buscar_sumulas`, `verificar_citacoes_sumulas`) look them up and check citations in a text deterministically; they use neither the network nor the vault. The official STJ spreadsheet of binding precedents ("temas repetitivos" and IAC) is embedded the same way and served by three more read-only tools (`obter_precedente`, `buscar_precedentes`, `verificar_citacoes_precedentes`). These data sets are why `main.js` is about 5 MB.
 
 License: MIT.

@@ -68,7 +68,7 @@ function paraTribunal(texto: string): Tribunal {
 	return "TJPE";
 }
 
-function transcricaoDepois(texto: string, de: number, limite: number): Transcricao | undefined {
+export function transcricaoDepois(texto: string, de: number, limite: number, maximo = LIMITE_TRANSCRICAO): Transcricao | undefined {
 	const janela = texto.slice(de, Math.min(limite, de + 140));
 	const abre = janela.search(/[“"«]/u);
 	if (abre >= 0) {
@@ -77,7 +77,7 @@ function transcricaoDepois(texto: string, de: number, limite: number): Transcric
 			const inicio = de + abre;
 			const fecha = FECHA[texto[inicio]];
 			const fim = texto.indexOf(fecha, inicio + 1);
-			if (fim > inicio && fim - inicio <= LIMITE_TRANSCRICAO) {
+			if (fim > inicio && fim - inicio <= maximo) {
 				return { texto: texto.slice(inicio + 1, fim), comAspas: true };
 			}
 		}
@@ -88,7 +88,7 @@ function transcricaoDepois(texto: string, de: number, limite: number): Transcric
 		if (!ABRE.includes(texto[inicio] ?? "")) {
 			let fim = texto.indexOf("\n", inicio);
 			if (fim < 0) fim = texto.length;
-			fim = Math.min(fim, limite, inicio + LIMITE_TRANSCRICAO);
+			fim = Math.min(fim, limite, inicio + maximo);
 			const trecho = texto.slice(inicio, fim).trim();
 			if (trecho.split(/\s+/).length >= 4) return { texto: trecho, comAspas: false };
 		}
@@ -96,13 +96,13 @@ function transcricaoDepois(texto: string, de: number, limite: number): Transcric
 	return undefined;
 }
 
-function transcricaoAntes(texto: string, ate: number, piso: number): Transcricao | undefined {
+export function transcricaoAntes(texto: string, ate: number, piso: number, maximo = LIMITE_TRANSCRICAO): Transcricao | undefined {
 	const cauda = /([”"»])[\s,.;]*[([–—-]?\s*$/u.exec(texto.slice(Math.max(piso, ate - 14), ate));
 	if (!cauda) return undefined;
 	const fim = Math.max(piso, ate - 14) + cauda.index;
 	const abre = cauda[1] === "”" ? "“" : cauda[1] === "»" ? "«" : '"';
 	const inicio = texto.lastIndexOf(abre, fim - 1);
-	if (inicio < piso || fim - inicio > LIMITE_TRANSCRICAO) return undefined;
+	if (inicio < piso || fim - inicio > maximo) return undefined;
 	return { texto: texto.slice(inicio + 1, fim), comAspas: true };
 }
 

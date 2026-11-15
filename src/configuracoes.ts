@@ -19,6 +19,8 @@ export interface ConfiguracoesProjurista {
 	limiteCaracteres: number;
 	/** Anuncia as ferramentas de súmulas (STF, STJ, TJPE), que usam a base embutida no plugin. */
 	ferramentasSumulas: boolean;
+	/** Anuncia as ferramentas de precedentes qualificados do STJ, que usam a base embutida no plugin. */
+	ferramentasPrecedentes: boolean;
 }
 
 export const CONFIGURACOES_PADRAO: ConfiguracoesProjurista = {
@@ -32,6 +34,7 @@ export const CONFIGURACOES_PADRAO: ConfiguracoesProjurista = {
 	nomeServidor: "",
 	limiteCaracteres: 200_000,
 	ferramentasSumulas: true,
+	ferramentasPrecedentes: true,
 };
 
 /** Pastas sempre invisíveis: a pasta de configuração do Obsidian (que o usuário pode renomear) e a lixeira. */

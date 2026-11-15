@@ -10,12 +10,12 @@
  * "verificar" sai com código 1 quando o veredito é NAO_VERIFICADO (serve para ganchos e scripts).
  */
 import { readFileSync } from "fs";
-import { createInterface } from "readline";
 import { CONFIGURACOES_PADRAO } from "../configuracoes";
 import { Despachante } from "../mcp/despachante";
 import type { ContextoFerramenta } from "../mcp/tipos";
 import { Registro } from "../registro";
 import { baseSumulas, resumoCobertura } from "../sumulas/base";
+import { servirStdio } from "./stdio";
 import { FERRAMENTAS_SUMULAS_NUCLEO, INSTRUCOES_SUMULAS, obterSumula, verificarCitacoesSumulas } from "../sumulas/ferramentas";
 
 declare const __VERSAO_PROJURISTA__: string;
@@ -60,26 +60,14 @@ async function linhaDeComando(args: string[]): Promise<number> {
 }
 
 function servidor(): void {
-	const despachante = new Despachante({
+	servirStdio(new Despachante({
 		nomeServidor: "projurista-sumulas",
 		versaoServidor: __VERSAO_PROJURISTA__,
 		ferramentas: FERRAMENTAS_SUMULAS_NUCLEO,
 		contexto: () => contexto,
 		escritaPermitida: () => false,
 		instrucoes: () => `Servidor de súmulas da Projurista (base embutida, sem rede). ${INSTRUCOES_SUMULAS}`,
-	});
-	const entrada = createInterface({ input: process.stdin, crlfDelay: Infinity });
-	let fila: Promise<void> = Promise.resolve();
-	entrada.on("line", (linha) => {
-		if (!linha.trim()) return;
-		fila = fila.then(async () => {
-			const resposta = await despachante.tratarTexto(linha);
-			if (resposta) escrever(JSON.stringify(resposta));
-		});
-	});
-	entrada.on("close", () => {
-		void fila.then(() => process.exit(0));
-	});
+	}));
 }
 
 const argumentos = process.argv.slice(2);

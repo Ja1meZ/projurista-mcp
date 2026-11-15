@@ -9,6 +9,7 @@ import {
 	ResultadoFerramenta,
 } from "./tipos";
 import { INSTRUCOES_SUMULAS } from "../sumulas/ferramentas";
+import { INSTRUCOES_PRECEDENTES } from "../precedentes/ferramentas";
 
 export const VERSOES_PROTOCOLO = ["2025-06-18", "2025-03-26", "2024-11-05"];
 export const VERSAO_PROTOCOLO_PADRAO = "2025-06-18";
@@ -172,6 +173,7 @@ export class Despachante {
 				? "A escrita está habilitada: criar_nota, anexar_a_nota, substituir_nota, editar_frontmatter, mover_nota e excluir_nota alteram o cofre do usuário. Confirme antes de alterações amplas."
 				: "O servidor está em modo somente leitura; nenhuma ferramenta altera o cofre.",
 			this.ferramentasVisiveis().some((f) => f.name === "verificar_citacoes_sumulas") ? INSTRUCOES_SUMULAS : "",
+			this.ferramentasVisiveis().some((f) => f.name === "verificar_citacoes_precedentes") ? INSTRUCOES_PRECEDENTES : "",
 		]
 			.filter((p) => p)
 			.join(" ");
