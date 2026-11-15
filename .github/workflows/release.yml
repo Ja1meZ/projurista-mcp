@@ -22,6 +22,8 @@ jobs:
         run: npm ci
       - name: Compilar
         run: npm run build
+      - name: Testar
+        run: npm test
       - name: Atestar proveniência dos artefatos
         uses: actions/attest-build-provenance@v2
         with:
@@ -29,9 +31,10 @@ jobs:
             main.js
             manifest.json
             styles.css
+            dist/projurista-sumulas.mjs
       - name: Criar release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
-          gh release create "$tag" --title "$tag" --generate-notes main.js manifest.json styles.css
+          gh release create "$tag" --title "$tag" --generate-notes main.js manifest.json styles.css dist/projurista-sumulas.mjs

@@ -69,6 +69,14 @@ Busca semântica (aparece só quando o plugin [Smart Connections](https://github
 |---|---|
 | `buscar_semantica` | Encontra notas ou trechos por significado, mesmo sem coincidência de palavras; usa os embeddings locais do Smart Connections, sem enviar nada para fora |
 
+Súmulas (ligadas por padrão; desligue em "Ferramentas de súmulas" se não quiser):
+
+| Ferramenta | O que faz |
+|---|---|
+| `obter_sumula` | Devolve o enunciado literal de uma súmula do STF (comum ou vinculante), do STJ ou do TJPE, com a situação, a fonte oficial e a citação pronta |
+| `buscar_sumulas` | Pesquisa súmulas por palavras do enunciado, sem diferenciar acentos |
+| `verificar_citacoes_sumulas` | Confere todas as citações de súmula de um texto, palavra por palavra, e alerta para súmula cancelada, revogada ou superada |
+
 Escrita (só com a chave "Permitir escrita" ligada):
 
 | Ferramenta | O que faz |
@@ -80,6 +88,32 @@ Escrita (só com a chave "Permitir escrita" ligada):
 | `editar_frontmatter` | Define ou remove propriedades |
 | `mover_nota` | Move ou renomeia, atualizando os links |
 | `excluir_nota` | Envia para a lixeira (nunca apaga em definitivo) |
+
+## Súmulas: texto literal e conferência de citações
+
+Modelos de linguagem erram enunciado de súmula: trocam uma palavra, citam súmula cancelada ou atribuem o texto ao número errado. O plugin traz embutida uma base com as Súmulas Vinculantes (1 a 63), as Súmulas do STF (1 a 736), as Súmulas do STJ (1 a 676) e as Súmulas do TJPE (1 a 200), copiadas das publicações oficiais dos tribunais e conferidas por mais de uma via de extração. Cada registro guarda a situação (vigente, cancelada, revogada, superada, alterada), a fonte e o hash do texto.
+
+- Para escrever: o Claude chama `obter_sumula` e copia o enunciado devolvido, em vez de redigi-lo de memória.
+- Para conferir: `verificar_citacoes_sumulas` recebe o texto inteiro (uma minuta, uma petição, um voto), localiza as referências por expressões regulares e compara cada transcrição com o enunciado oficial. A comparação é feita por código, sem modelo de linguagem. O relatório diz o que confere, mostra a palavra divergente, aponta número que não corresponde ao texto e termina com um veredito do documento.
+
+Limites que convém conhecer:
+
+- O servidor MCP não obriga o Claude a chamá-lo. Peça a conferência ("verifique as súmulas deste texto") ou ponha a regra nas instruções do seu projeto.
+- A base é uma fotografia das fontes oficiais na data indicada nas configurações do plugin. Súmula posterior a essa data sai como "não encontrada na base", o que não significa que não exista.
+- Só são conferidas as referências com número ("Súmula 7 do STJ", "SV 10", "Súmula 130 do TJPE"). Súmulas de outros tribunais são apenas relacionadas no relatório.
+- Onde as publicações oficiais do TJPE divergem entre si, o registro traz a observação e as duas redações.
+
+A base vai dentro do plugin e é atualizada a cada versão: nada é baixado da internet.
+
+### Servidor avulso, sem Obsidian
+
+Cada release traz também `projurista-sumulas.mjs`, um arquivo único com as mesmas três ferramentas, para quem quer só as súmulas (requer Node.js 18 ou mais novo):
+
+```
+claude mcp add projurista-sumulas -- node /caminho/para/projurista-sumulas.mjs
+```
+
+O mesmo arquivo serve na linha de comando, para scripts e ganchos: `node projurista-sumulas.mjs verificar minuta.txt` imprime o relatório e termina com código 1 quando o veredito é "não verificado"; `node projurista-sumulas.mjs obter STJ 7` imprime o enunciado.
 
 ## Busca semântica com o Smart Connections
 
@@ -101,6 +135,7 @@ A busca padrão (`buscar_notas`) é por palavras. Para pesquisar por significado
 - Dentro do cofre, o plugin grava `ponte.ps1` na própria pasta (`.obsidian/plugins/projurista-mcp/`), usado apenas no Windows.
 - Sem telemetria, sem anúncios, sem pagamento, sem conta.
 - Código de terceiros: [fflate](https://github.com/101arrowz/fflate) (MIT), usado para montar o pacote `.mcpb`.
+- Dados embutidos: enunciados de súmulas do STF, do STJ e do TJPE, textos oficiais de domínio público, incluídos no próprio `main.js`. As ferramentas de súmulas não acessam a rede nem o cofre.
 
 ## Problemas comuns
 
@@ -142,5 +177,6 @@ Projurista MCP runs a local [MCP](https://modelcontextprotocol.io) server inside
 - Files inside the vault outside the Vault API: `ponte.ps1` is written into the plugin's own folder via the vault adapter; it is the Windows bridge script.
 - No telemetry, no ads, no payment, no account.
 - Third-party code: [fflate](https://github.com/101arrowz/fflate) (MIT), bundled to build the `.mcpb` zip.
+- Bundled data: the official texts of Brazilian court precedent statements ("súmulas" of STF, STJ and TJPE, public-domain official acts) are embedded in `main.js`. The three súmula tools (`obter_sumula`, `buscar_sumulas`, `verificar_citacoes_sumulas`) look them up and check citations in a text deterministically; they use neither the network nor the vault. That data set is why `main.js` is about 1.6 MB.
 
 License: MIT.

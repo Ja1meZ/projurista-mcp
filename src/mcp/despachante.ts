@@ -8,6 +8,7 @@ import {
 	JsonRpcResposta,
 	ResultadoFerramenta,
 } from "./tipos";
+import { INSTRUCOES_SUMULAS } from "../sumulas/ferramentas";
 
 export const VERSOES_PROTOCOLO = ["2025-06-18", "2025-03-26", "2024-11-05"];
 export const VERSAO_PROTOCOLO_PADRAO = "2025-06-18";
@@ -18,6 +19,8 @@ export interface OpcoesDespachante {
 	ferramentas: Ferramenta[];
 	contexto: () => ContextoFerramenta;
 	escritaPermitida: () => boolean;
+	/** Substitui o texto de instruções (servidor avulso, sem cofre). */
+	instrucoes?: () => string;
 }
 
 function respostaErro(id: JsonRpcId, code: number, message: string, data?: unknown): JsonRpcResposta {
@@ -108,6 +111,7 @@ export class Despachante {
 							name: f.name,
 							description: f.description,
 							inputSchema: f.inputSchema,
+							...(f.annotations ? { annotations: f.annotations } : {}),
 						})),
 					});
 				case "tools/call":
@@ -156,6 +160,7 @@ export class Despachante {
 	}
 
 	private instrucoes(): string {
+		if (this.opcoes.instrucoes) return this.opcoes.instrucoes();
 		const escrita = this.opcoes.escritaPermitida();
 		const semantica = this.ferramentasVisiveis().some((f) => f.name === "buscar_semantica");
 		return [
@@ -166,7 +171,10 @@ export class Despachante {
 			escrita
 				? "A escrita está habilitada: criar_nota, anexar_a_nota, substituir_nota, editar_frontmatter, mover_nota e excluir_nota alteram o cofre do usuário. Confirme antes de alterações amplas."
 				: "O servidor está em modo somente leitura; nenhuma ferramenta altera o cofre.",
-		].join(" ");
+			this.ferramentasVisiveis().some((f) => f.name === "verificar_citacoes_sumulas") ? INSTRUCOES_SUMULAS : "",
+		]
+			.filter((p) => p)
+			.join(" ");
 	}
 
 	private async chamarFerramenta(params: Record<string, unknown>): Promise<ResultadoFerramenta> {

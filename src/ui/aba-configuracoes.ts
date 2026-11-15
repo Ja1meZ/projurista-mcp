@@ -3,6 +3,7 @@ import type ProjuristaMcpPlugin from "../main";
 import { CONFIGURACOES_PADRAO, ConfiguracoesProjurista } from "../configuracoes";
 import { ModalRegistro } from "./modais";
 import { descricaoEstadoSmart, estadoSmartConnections } from "../mcp/tools/semantica";
+import { baseSumulas, resumoCobertura } from "../sumulas/base";
 
 /**
  * Aba de configurações na API declarativa do Obsidian (1.13+): as opções ficam
@@ -33,6 +34,12 @@ export class AbaConfiguracoes extends PluginSettingTab {
 				await this.plugin.salvarConfiguracoes();
 				this.plugin.avisarListaDeFerramentasMudou();
 				new Notice(c.permitirEscrita ? "Escrita habilitada. O Claude pode alterar o cofre." : "Modo somente leitura.");
+				this.update();
+				return;
+			case "ferramentasSumulas":
+				c.ferramentasSumulas = Boolean(valor);
+				await this.plugin.salvarConfiguracoes();
+				this.plugin.avisarListaDeFerramentasMudou();
 				this.update();
 				return;
 			case "httpAtivo":
@@ -147,6 +154,18 @@ export class AbaConfiguracoes extends PluginSettingTab {
 						desc: `Uma por linha. Essas pastas ficam invisíveis para o Claude. As pastas ${this.app.vault.configDir} e .trash são sempre ocultas.`,
 						aliases: ["excluir", "sigilo", "privacidade"],
 						control: { type: "textarea", key: "pastasExcluidas", placeholder: "Sigiloso\nPessoal/Financeiro", rows: 3 },
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Súmulas",
+				items: [
+					{
+						name: "Ferramentas de súmulas",
+						desc: `O Claude consulta o texto literal das súmulas e confere as citações de um documento, palavra por palavra, sem internet. Base ${baseSumulas().versao}: ${resumoCobertura(baseSumulas())}.`,
+						aliases: ["súmula", "stf", "stj", "tjpe", "citação"],
+						control: { type: "toggle", key: "ferramentasSumulas", defaultValue: CONFIGURACOES_PADRAO.ferramentasSumulas },
 					},
 				],
 			},

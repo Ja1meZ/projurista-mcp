@@ -61,10 +61,19 @@ export interface ContextoFerramenta {
 	registro: Registro;
 }
 
+/** Dicas de comportamento do MCP (tools/list → annotations). */
+export interface AnotacoesFerramenta {
+	readOnlyHint?: boolean;
+	destructiveHint?: boolean;
+	idempotentHint?: boolean;
+	openWorldHint?: boolean;
+}
+
 export interface Ferramenta {
 	name: string;
 	description: string;
 	inputSchema: EsquemaJson;
+	annotations?: AnotacoesFerramenta;
 	escrita?: boolean;
 	/** Quando definido, a ferramenta só é anunciada se devolver true (ex.: depende de outro plugin). */
 	disponivel?: (contexto: ContextoFerramenta) => boolean;

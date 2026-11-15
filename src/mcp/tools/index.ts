@@ -3,5 +3,6 @@ import { FERRAMENTAS_LEITURA } from "./leitura";
 import { FERRAMENTAS_BUSCA } from "./busca";
 import { FERRAMENTAS_ESCRITA } from "./escrita";
 import { FERRAMENTAS_SEMANTICA } from "./semantica";
+import { FERRAMENTAS_SUMULAS } from "./sumulas";
 
-export const TODAS_AS_FERRAMENTAS: Ferramenta[] = [...FERRAMENTAS_LEITURA, ...FERRAMENTAS_BUSCA, ...FERRAMENTAS_SEMANTICA, ...FERRAMENTAS_ESCRITA];
+export const TODAS_AS_FERRAMENTAS: Ferramenta[] = [...FERRAMENTAS_LEITURA, ...FERRAMENTAS_BUSCA, ...FERRAMENTAS_SEMANTICA, ...FERRAMENTAS_SUMULAS, ...FERRAMENTAS_ESCRITA];

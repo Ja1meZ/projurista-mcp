@@ -17,6 +17,8 @@ export interface ConfiguracoesProjurista {
 	nomeServidor: string;
 	/** Tamanho máximo, em caracteres, do texto devolvido por uma ferramenta. */
 	limiteCaracteres: number;
+	/** Anuncia as ferramentas de súmulas (STF, STJ, TJPE), que usam a base embutida no plugin. */
+	ferramentasSumulas: boolean;
 }
 
 export const CONFIGURACOES_PADRAO: ConfiguracoesProjurista = {
@@ -29,6 +31,7 @@ export const CONFIGURACOES_PADRAO: ConfiguracoesProjurista = {
 	pastasExcluidas: [],
 	nomeServidor: "",
 	limiteCaracteres: 200_000,
+	ferramentasSumulas: true,
 };
 
 /** Pastas sempre invisíveis: a pasta de configuração do Obsidian (que o usuário pode renomear) e a lixeira. */

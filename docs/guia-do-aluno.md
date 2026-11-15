@@ -68,6 +68,15 @@ A busca padrão encontra palavras. Para o Claude encontrar notas por assunto, me
 
 Tudo roda no seu computador; nada é enviado para a internet.
 
+## Súmulas sem erro de transcrição
+
+O plugin traz embutidas as súmulas do STF (comuns e vinculantes), do STJ e do TJPE, em texto literal copiado das publicações oficiais. Não precisa instalar nem configurar nada, e funciona sem internet.
+
+1. Para citar: peça "Transcreva a Súmula 7 do STJ" ou "Qual súmula do TJPE trata de fornecimento de medicamentos?". O Claude usa `obter_sumula` ou `buscar_sumulas` e copia o enunciado da base, com a situação (vigente, cancelada, revogada) e a fonte.
+2. Para conferir: cole a sua minuta ou a petição da parte e peça "Verifique as citações de súmulas deste texto". O Claude chama `verificar_citacoes_sumulas`, que compara cada transcrição com o texto oficial, palavra por palavra, e devolve um relatório: o que confere, o que diverge (com a palavra trocada), súmula cancelada citada como vigente e número que não corresponde ao texto.
+
+A conferência é feita pelo programa, não pela inteligência artificial. Ainda assim, quem decide chamar a ferramenta é o Claude: crie o hábito de pedir a verificação antes de assinar. Súmula mais nova que a base aparece como "não encontrada na base"; nesse caso, confira no portal do tribunal.
+
 ## Esconder pastas do Claude
 
 Configurações → Projurista MCP → "Pastas ocultas". Escreva uma pasta por linha (por exemplo, `Sigiloso` ou `Clientes/Confidencial`). Essas pastas ficam invisíveis em todas as ferramentas.

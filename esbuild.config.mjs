@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import { builtinModules } from "node:module";
+import { readFileSync } from "node:fs";
 
 const builtins = [...builtinModules, ...builtinModules.map((m) => `node:${m}`)];
 
@@ -11,7 +12,8 @@ Compilado com esbuild; se quiser ler o código, abra o repositório.
 */
 `;
 
-const prod = process.argv[2] === "production";
+const modo = process.argv[2];
+const prod = modo === "production";
 
 const context = await esbuild.context({
 	banner: { js: banner },
@@ -42,8 +44,43 @@ const context = await esbuild.context({
 	minify: false,
 });
 
-if (prod) {
+/** Servidor avulso de súmulas: um arquivo Node, sem dependências (dist/projurista-sumulas.mjs). */
+async function compilarAvulso() {
+	const { version } = JSON.parse(readFileSync("package.json", "utf8"));
+	await esbuild.build({
+		banner: { js: "#!/usr/bin/env node\n// Projurista Súmulas — servidor MCP avulso. Código-fonte: https://github.com/Ja1meZ/projurista-mcp" },
+		entryPoints: ["src/avulso/servidor-stdio.ts"],
+		bundle: true,
+		platform: "node",
+		format: "esm",
+		target: "node18",
+		define: { __VERSAO_PROJURISTA__: JSON.stringify(version) },
+		logLevel: "info",
+		outfile: "dist/projurista-sumulas.mjs",
+	});
+}
+
+/** Núcleo de súmulas compilado só para os testes (node --test). */
+async function compilarTestes() {
+	await esbuild.build({
+		entryPoints: ["src/sumulas/index.ts"],
+		bundle: true,
+		platform: "node",
+		format: "esm",
+		target: "node18",
+		logLevel: "warning",
+		outfile: "dist/nucleo-sumulas.mjs",
+	});
+}
+
+if (modo === "testes") {
+	await context.dispose();
+	await compilarTestes();
+	await compilarAvulso();
+	process.exit(0);
+} else if (prod) {
 	await context.rebuild();
+	await compilarAvulso();
 	process.exit(0);
 } else {
 	await context.watch();
