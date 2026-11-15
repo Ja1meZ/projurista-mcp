@@ -1,6 +1,6 @@
 import { Transcricao, transcricaoAntes, transcricaoDepois } from "../sumulas/detector";
 
-/** STJ: conferido na base. STF e OUTRO: fora do escopo. null: o texto não diz o tribunal. */
+/** STJ e STF: conferidos na base. OUTRO: fora do escopo. null: o texto não diz o tribunal. */
 export type TribunalDoTema = "STJ" | "STF" | "OUTRO" | null;
 
 export interface ReferenciaPrecedente {
@@ -17,6 +17,8 @@ export interface ReferenciaPrecedente {
 export interface ProcessoCitado {
 	linha: number;
 	mencao: string;
+	/** Classe como escrita ("REsp", "RE", "ARE"). */
+	classe: string;
 	/** Só os dígitos do número do processo. */
 	digitos: string;
 }
@@ -31,7 +33,7 @@ const NUM = "(?:n[.ºo°]{0,2}s?\\s*)?(?:\\d{1,2}\\.\\d{3}|\\d{1,4})(?![\\d])";
 const LISTA = `${NUM}(?:\\s*(?:,|e|\\/)\\s*${NUM})*`;
 const SIGLA = "STJ|STF|TST|TSE|STM|TNU|TRU|TCU|CARF|TRF\\d?|TRT\\d*|TJ[-\\/ ]?[A-Z]{2}";
 const TRIB =
-	`(?:${SIGLA}|Superior Tribunal de Justi[çc]a|Supremo Tribunal Federal|Suprema Corte|Pret[óo]rio Excelso|Excelso Pret[óo]rio|repercuss[ãa]o geral|recursos? (?:especia(?:l|is) )?repetitivos?|(?:sistem[áa]tica|rito|regime) d[oe]s? (?:recursos? )?repetitivos?|Tribunal Superior do Trabalho|Turma Nacional|Tribunal de Justi[çc]a|Tribunal Regional)`;
+	`(?:${SIGLA}|Superior Tribunal de Justi[çc]a|Supremo Tribunal Federal|Suprema Corte|Pret[óo]rio Excelso|Excelso Pret[óo]rio|repercuss[ãa]o geral|RG|recursos? (?:especia(?:l|is) )?repetitivos?|(?:sistem[áa]tica|rito|regime) d[oe]s? (?:recursos? )?repetitivos?|Tribunal Superior do Trabalho|Turma Nacional|Tribunal de Justi[çc]a|Tribunal Regional)`;
 const SUFIXO = `\\s*(?:[,\\/\\-–]\\s*|\\(\\s*)?(?:(?:d[oae]s?|pel[oa]s?|n[oa]s?|em)\\s+)?(?:(?:e\\.|eg\\.|egr[ée]gio|colendo|c\\.|excelso)\\s+)?(${TRIB})(?![\\p{L}\\d])`;
 
 const RE_CABECA = new RegExp(
@@ -47,14 +49,15 @@ const RE_SUFIXO = new RegExp(`^${SUFIXO}`, "iu");
 const RE_PREFIXO = new RegExp(`(?<![\\p{L}\\d])(${SIGLA})\\s*[,:–-]\\s*$`, "iu");
 /** "Temas 6 e 1.234 do STF e 106 do STJ": a lista continua com outro tribunal. */
 const RE_CONTINUACAO = new RegExp(`^\\s*(?:,|;|e)\\s*(?:(?:o|os|do|dos|no|nos|ao|aos)\\s+)?(?:temas?\\s+)?(${LISTA})(?=${SUFIXO})`, "iu");
-const RE_PROCESSO = /\b(REsp|EREsp|AREsp|RMS|Pet|CC|PUIL|Rcl|Recurso Especial)\s*(?:n[.ºo°]{0,2}\s*)?(\d[\d.]{4,}\d)(?:\s*[\/-]\s*[A-Z]{2})?/gu;
+const RE_PROCESSO = /\b(REsp|EREsp|AREsp|ARE|RE|RMS|Pet|CC|PUIL|Rcl|Recurso Especial|Recurso Extraordin[áa]rio)\s*(?:n[.ºo°]{0,2}\s*)?(\d[\d.]{4,}\d)(?:\s*[\/-]\s*[A-Z]{2})?/gu;
 
-const LIMITE_TRANSCRICAO = 6000;
+/** As teses mais longas do STF passam de 8.000 caracteres. */
+const LIMITE_TRANSCRICAO = 20000;
 
 function paraTribunal(texto: string): TribunalDoTema {
 	const t = texto.toLowerCase();
 	if (/^stj$|superior tribunal de justi|repetitiv/.test(t)) return "STJ";
-	if (/^stf$|suprem|pret[óo]rio|repercuss/.test(t)) return "STF";
+	if (/^stf$|^rg$|suprem|pret[óo]rio|repercuss/.test(t)) return "STF";
 	return "OUTRO";
 }
 
@@ -98,17 +101,32 @@ export function detectarPrecedentes(texto: string): DeteccaoPrecedentes {
 		RE_CABECA.lastIndex = Math.max(RE_CABECA.lastIndex, fim);
 	}
 
-	const referencias: ReferenciaPrecedente[] = [];
-	cabecas.forEach((c, i) => {
+	// transcrição de cada referência e o trecho do texto que ela ocupa
+	const transcricoes = cabecas.map((c, i) => {
+		if (c.numeros.length !== 1) return undefined;
 		const proxima = cabecas[i + 1]?.inicio ?? texto.length;
 		const anterior = i > 0 ? cabecas[i - 1].fim : 0;
-		let transcricao: Transcricao | undefined;
-		if (c.numeros.length === 1) {
-			transcricao = transcricaoDepois(texto, c.fim, proxima, LIMITE_TRANSCRICAO) ?? transcricaoAntes(texto, c.inicio, anterior, LIMITE_TRANSCRICAO);
+		const depois = transcricaoDepois(texto, c.fim, proxima, LIMITE_TRANSCRICAO);
+		if (depois) {
+			const inicio = texto.indexOf(depois.texto, c.fim);
+			return { transcricao: depois, inicio, fim: inicio + depois.texto.length };
 		}
+		const antes = transcricaoAntes(texto, c.inicio, anterior, LIMITE_TRANSCRICAO);
+		if (antes) {
+			const inicio = texto.lastIndexOf(antes.texto, c.inicio);
+			return { transcricao: antes, inicio, fim: inicio + antes.texto.length };
+		}
+		return undefined;
+	});
+	// "tema 500" escrito dentro da tese transcrita de outro tema faz parte da citação: não é referência do texto
+	const embutida = (i: number) => transcricoes.some((t, j) => j !== i && t !== undefined && t.transcricao.comAspas && t.inicio >= 0 && cabecas[i].inicio >= t.inicio && cabecas[i].inicio < t.fim);
+
+	const referencias: ReferenciaPrecedente[] = [];
+	cabecas.forEach((c, i) => {
+		if (embutida(i)) return;
 		const linha = linhaDe(c.inicio);
 		for (const numero of c.numeros) {
-			referencias.push({ tipo: c.tipo, numero, tribunal: c.tribunal, inicio: c.inicio, fim: c.fim, linha, mencao: texto.slice(c.inicio, c.fim).replace(/\s+/g, " "), transcricao });
+			referencias.push({ tipo: c.tipo, numero, tribunal: c.tribunal, inicio: c.inicio, fim: c.fim, linha, mencao: texto.slice(c.inicio, c.fim).replace(/\s+/g, " "), transcricao: transcricoes[i]?.transcricao });
 		}
 	});
 
@@ -116,7 +134,7 @@ export function detectarPrecedentes(texto: string): DeteccaoPrecedentes {
 	RE_PROCESSO.lastIndex = 0;
 	for (let m = RE_PROCESSO.exec(texto); m; m = RE_PROCESSO.exec(texto)) {
 		const digitos = m[2].replace(/\D/g, "");
-		if (digitos.length >= 5) processos.push({ linha: linhaDe(m.index), mencao: m[0].replace(/\s+/g, " "), digitos });
+		if (digitos.length >= 5) processos.push({ linha: linhaDe(m.index), mencao: m[0].replace(/\s+/g, " "), classe: m[1], digitos });
 	}
 	return { referencias, processos };
 }

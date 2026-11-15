@@ -1,8 +1,8 @@
 import { ErroFerramenta, Ferramenta, ResultadoFerramenta } from "../mcp/tipos";
 import { semAcento } from "../sumulas/normalizar";
-import { BasePrecedentes, basePrecedentes, nomePrecedente, resumoCobertura } from "./base";
-import { ConferenciaPrecedente, RelatorioPrecedentes, ResultadoPrecedente, VereditoPrecedentes, descricaoSituacao, textoAlerta, verificarPrecedentes } from "./comparador";
-import type { RegistroPrecedente, SituacaoPrecedente, TipoPrecedente } from "./tipos";
+import { BasePrecedentes, basePrecedentes, dataBr, nomePrecedente, resumoCobertura, tribunalDaClasse, tribunalDoTipo } from "./base";
+import { ConferenciaPrecedente, RelatorioPrecedentes, ResultadoPrecedente, VereditoPrecedentes, descricaoSituacao, teseTruncada, textoAlerta, verificarPrecedentes } from "./comparador";
+import type { RegistroPrecedente, SituacaoPrecedente, TipoPrecedente, TribunalPrecedente } from "./tipos";
 
 const SOMENTE_LEITURA = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 
@@ -11,18 +11,27 @@ function texto(conteudo: string): ResultadoFerramenta {
 }
 
 function rodape(base: BasePrecedentes): string {
-	return `Base de precedentes qualificados do STJ, Projurista ${base.versao} (${resumoCobertura(base)}). Não cobre temas de repercussão geral do STF.`;
+	return `Base de precedentes qualificados Projurista (${resumoCobertura(base)}).`;
+}
+
+function lerTribunal(valor: unknown): TribunalPrecedente | undefined {
+	if (valor === undefined || valor === null || valor === "") return undefined;
+	const t = semAcento(typeof valor === "string" ? valor : "").replace(/[^a-z]/g, "");
+	if (t === "stj" || t.startsWith("superior")) return "STJ";
+	if (t === "stf" || t.startsWith("supremo")) return "STF";
+	throw new ErroFerramenta('O parâmetro "tribunal" deve ser STJ ou STF.');
 }
 
 function lerTipo(valor: unknown, padrao: TipoPrecedente | undefined): TipoPrecedente | undefined {
 	if (valor === undefined || valor === null || valor === "") return padrao;
 	const t = semAcento(typeof valor === "string" ? valor : "");
+	if (t === "rg" || t.startsWith("repercuss")) return "RG";
 	if (t.startsWith("tema") || t.startsWith("repet")) return "TEMA";
 	if (t === "iac" || t.startsWith("incidente")) return "IAC";
 	if (t.startsWith("relev")) return "RELEVANCIA";
 	if (t.startsWith("controv")) return "CONTROVERSIA";
 	if (t === "sirdr") return "SIRDR";
-	throw new ErroFerramenta('O parâmetro "tipo" deve ser tema, iac, relevancia, controversia ou sirdr.');
+	throw new ErroFerramenta('O parâmetro "tipo" deve ser tema, iac, relevancia, controversia, sirdr (STJ) ou rg (STF).');
 }
 
 function lerNumero(valor: unknown): number {
@@ -31,12 +40,14 @@ function lerNumero(valor: unknown): number {
 	return n;
 }
 
-const SITUACOES: SituacaoPrecedente[] = ["transitado", "tese_sem_transito", "afetado", "revisado", "cancelado", "outro"];
+const SITUACOES: SituacaoPrecedente[] = ["transitado", "tese_sem_transito", "afetado", "revisado", "rg_negada", "cancelado", "outro"];
 
 function lerSituacao(valor: unknown): SituacaoPrecedente | undefined {
 	if (valor === undefined || valor === null || valor === "") return undefined;
 	const t = semAcento(typeof valor === "string" ? valor : "").replace(/[\s-]+/g, "_");
-	const achada = SITUACOES.find((s) => s === t) ?? (t.startsWith("transit") ? "transitado" : t.startsWith("afet") ? "afetado" : t.startsWith("revis") ? "revisado" : t.startsWith("cancel") ? "cancelado" : undefined);
+	const achada =
+		SITUACOES.find((s) => s === t) ??
+		(t.startsWith("transit") ? "transitado" : t.startsWith("afet") ? "afetado" : t.startsWith("revis") ? "revisado" : t.startsWith("cancel") ? "cancelado" : t.includes("negad") ? "rg_negada" : undefined);
 	if (!achada) throw new ErroFerramenta(`O parâmetro "situacao" deve ser um destes: ${SITUACOES.join(", ")}.`);
 	return achada;
 }
@@ -54,20 +65,23 @@ function lerOrgao(valor: unknown): string | undefined {
 }
 
 function avisoSituacao(r: RegistroPrecedente): string {
-	const suspensao = r.suspensao ? ` Suspensão determinada pelo STJ: ${r.suspensao}.` : "";
+	const suspensao = r.suspensao ? ` Suspensão: ${r.suspensao}.` : "";
+	const onde = `situação no ${r.tribunal}: ${r.situacao_original}`;
 	switch (r.situacao) {
 		case "transitado":
-			return r.tese ? "" : "ATENÇÃO: o STJ não registra tese neste precedente. Leia as anotações.";
+			return r.tese ? "" : `ATENÇÃO: o ${r.tribunal} não registra tese neste precedente.`;
 		case "tese_sem_transito":
-			return `ATENÇÃO: ${r.tese ? "tese fixada, ainda sem trânsito em julgado" : "julgado sem trânsito e sem tese registrada"} (situação no STJ: ${r.situacao_original}). Ao citar, diga a situação; não trate como tese definitiva.${suspensao}`;
+			return `ATENÇÃO: ${r.tese ? "tese fixada, ainda sem trânsito em julgado" : "julgado sem trânsito e sem tese registrada"} (${onde}). Ao citar, diga a situação; não trate como tese definitiva.${suspensao}`;
 		case "afetado":
-			return `ATENÇÃO: precedente em tramitação (situação no STJ: ${r.situacao_original})${r.tese ? "; a tese registrada pode ser revista" : "; não há tese firmada"}.${suspensao}`;
+			return `ATENÇÃO: precedente em tramitação (${onde})${r.tese ? "; a tese registrada pode ser revista" : "; não há tese firmada"}.${suspensao}`;
 		case "revisado":
 			return "ATENÇÃO: tese revisada pelo STJ. O texto abaixo é o que o STJ mantém no registro; leia as anotações antes de citar.";
+		case "rg_negada":
+			return `ATENÇÃO: repercussão geral NEGADA (${onde}). Não há tese de mérito do STF: o enunciado abaixo só diz que a questão não tem repercussão geral. Não cite como entendimento do STF sobre o mérito.`;
 		case "cancelado":
 			return "ATENÇÃO: precedente cancelado. Não cite como precedente em vigor; só como histórico, dizendo a situação.";
 		default:
-			return `ATENÇÃO: situação "${r.situacao_original}" no STJ. Não é tese firmada.`;
+			return `ATENÇÃO: situação "${r.situacao_original}" no ${r.tribunal}. Não é tese firmada.`;
 	}
 }
 
@@ -75,26 +89,44 @@ function linhasDeAlerta(r: RegistroPrecedente, recuo: string): string[] {
 	return r.alertas.filter((a) => a.codigo !== "SEM_TESE_NA_FONTE").map((a) => `${recuo}${a.codigo === "VIDE" ? "" : "Atenção: "}${textoAlerta(a)}`);
 }
 
+/** Tese para citar: o "¿" (espaço corrompido na base do STF) vira espaço. */
+function teseParaCitar(tese: string): string {
+	return tese.replace(/[ \t]*¿+[ \t]*/g, " ").replace(/ +\n/g, "\n").trim();
+}
+
 function fichaPrecedente(r: RegistroPrecedente, base: BasePrecedentes): string[] {
 	const nome = nomePrecedente(r);
+	const stf = r.tribunal === "STF";
 	const linhas: string[] = [];
 	const aviso = avisoSituacao(r);
 	if (aviso) linhas.push(aviso, "");
-	linhas.push(`${nome} — situação no STJ: ${descricaoSituacao(r)}`);
+	linhas.push(`${nome} — situação no ${r.tribunal}: ${descricaoSituacao(r)}`);
+	if (r.titulo) linhas.push(`Título: ${r.titulo}`);
 	if (r.orgao_julgador) linhas.push(`Órgão julgador: ${r.orgao_julgador}`);
 	if (r.relator_atual) linhas.push(`Relator: ${r.relator_atual}${r.primeiro_relator && r.primeiro_relator !== r.relator_atual ? ` (primeiro relator: ${r.primeiro_relator})` : ""}`);
-	if (r.paradigmas.length) linhas.push(`Processos paradigma: ${r.paradigmas.join(", ")}`);
+	if (r.paradigmas.length) linhas.push(`Processo${r.paradigmas.length > 1 ? "s" : ""} paradigma: ${r.paradigmas.join(", ")}`);
+	if (r.ramo_direito) linhas.push(`Ramo do direito: ${r.ramo_direito}${r.assunto ? ` — ${r.assunto}` : ""}`);
 	if (r.suspensao) linhas.push(`Suspensão: ${r.suspensao}`);
-	linhas.push("", "Questão submetida a julgamento (texto literal do STJ):", r.questao || "(não informada)", "");
+	linhas.push("", `${stf ? "Descrição do tema" : "Questão submetida a julgamento"} (texto literal do ${r.tribunal}):`, r.questao || "(não informada)", "");
 	if (r.tese) {
-		linhas.push("Tese (texto literal do STJ):", r.tese, "", "Citação pronta (copie sem alterar):", `${nome}: “${r.tese}”`, "");
+		const rotulo = r.situacao === "rg_negada" ? "Enunciado (texto literal do STF; não é tese de mérito)" : `Tese (texto literal do ${r.tribunal})`;
+		linhas.push(`${rotulo}:`, r.tese, "");
+		if (teseTruncada(r)) {
+			linhas.push("Citação pronta: NÃO DISPONÍVEL. O texto acima está incompleto (as fontes oficiais usadas cortam esta tese). Não complete de memória: use o acórdão ou a nota do cofre.", "");
+		} else if (r.situacao !== "rg_negada") {
+			linhas.push("Citação pronta (copie sem alterar):", `${nome}: “${teseParaCitar(r.tese)}”`, "");
+		}
 	} else {
-		linhas.push("Tese: o STJ não registra tese neste precedente. Não escreva tese de memória.", "");
+		linhas.push(`Tese: o ${r.tribunal} não registra tese neste precedente. Não escreva tese de memória.`, "");
 	}
 	const alertas = linhasDeAlerta(r, "");
 	if (alertas.length) linhas.push(...alertas, "");
+	if (r.decisao_julgamento) linhas.push("Decisão de julgamento (texto do STF):", r.decisao_julgamento, "");
+	if (r.decisao_admissibilidade) linhas.push("Decisão de admissibilidade (texto do STF):", r.decisao_admissibilidade, "");
 	if (r.anotacoes) linhas.push("Anotações do STJ (texto literal):", r.anotacoes, "");
-	linhas.push(`Fonte: ${base.urlFonte} (planilha oficial de ${base.dataFonte.split("-").reverse().join("/")})`);
+	const fonte = base.fontes[r.tribunal];
+	if (fonte) linhas.push(`Fonte: ${fonte.urlFonte} (planilha oficial de ${dataBr(fonte.dataFonte)})`);
+	if (r.link_processo) linhas.push(`Processo no portal do STF: ${r.link_processo}`);
 	linhas.push(`Identificador: ${r.id}${r.sha256_tese ? ` · sha256 da tese: ${r.sha256_tese}` : ""}`);
 	return linhas;
 }
@@ -102,34 +134,45 @@ function fichaPrecedente(r: RegistroPrecedente, base: BasePrecedentes): string[]
 export const obterPrecedente: Ferramenta = {
 	name: "obter_precedente",
 	description:
-		"Devolve a tese LITERAL de um precedente qualificado do STJ (tema repetitivo, IAC, tema de relevância), copiada da planilha oficial do tribunal, com a questão julgada, a situação (trânsito em julgado, acórdão publicado, afetado, revisado, cancelado), a ordem de suspensão, os processos paradigma, as anotações do STJ e a citação pronta. Use SEMPRE antes de transcrever ou aplicar a tese de um tema do STJ: nunca escreva a tese de memória. Só precedente com trânsito em julgado é tese definitiva. Não cobre temas de repercussão geral do STF.",
+		"Devolve a tese LITERAL de um precedente qualificado: tema repetitivo, IAC ou tema de relevância do STJ, ou tema de repercussão geral do STF. O texto é copiado da planilha oficial do tribunal e vem com a questão julgada, a situação (trânsito em julgado, sem trânsito, afetado ou mérito pendente, revisado, repercussão geral negada, cancelado), a suspensão de processos, os paradigmas, os avisos e a citação pronta. Use SEMPRE antes de transcrever ou aplicar a tese de um tema: nunca escreva a tese de memória. Só precedente com trânsito em julgado é tese definitiva. Para tema do STF, passe tribunal=\"STF\".",
 	annotations: SOMENTE_LEITURA,
 	inputSchema: {
 		type: "object",
 		properties: {
 			numero: { type: "integer", minimum: 1, description: "Número do precedente, ex.: 1150." },
-			tipo: { type: "string", enum: ["tema", "iac", "relevancia", "controversia", "sirdr"], description: "Tipo do precedente. Padrão: tema (tema repetitivo).", default: "tema" },
+			tribunal: { type: "string", enum: ["STJ", "STF"], description: "Tribunal do precedente. Padrão: STJ. Com STF, o número é o do tema de repercussão geral.", default: "STJ" },
+			tipo: { type: "string", enum: ["tema", "iac", "relevancia", "controversia", "sirdr"], description: "Só para o STJ: tipo do precedente. Padrão: tema (tema repetitivo).", default: "tema" },
 		},
 		required: ["numero"],
 		additionalProperties: false,
 	},
 	executar(args) {
 		const base = basePrecedentes();
-		const tipo = lerTipo(args.tipo, "TEMA")!;
+		let tipo = lerTipo(args.tipo, undefined);
+		const tribunal = lerTribunal(args.tribunal) ?? (tipo === "RG" ? "STF" : "STJ");
+		if (tribunal === "STF") {
+			if (tipo && tipo !== "RG" && tipo !== "TEMA") throw new ErroFerramenta("No STF a base só tem temas de repercussão geral.");
+			tipo = "RG";
+		} else {
+			tipo = tipo && tipo !== "RG" ? tipo : "TEMA";
+		}
 		const numero = lerNumero(args.numero);
-		const registro = tipo === "TEMA" ? base.obterTema(numero) : base.obter(tipo, numero);
+		const registro = tipo === "TEMA" ? base.obterTema(numero, "STJ") : base.obter(tipo, numero);
 		if (!registro) {
 			const c = base.cobertura[tipo];
+			const fonte = base.fontes[tribunal];
+			const outro = tribunal === "STJ" ? base.obterTema(numero, "STF") : base.obterTema(numero, "STJ");
 			return Promise.resolve(
 				texto(
 					[
 						`NÃO ENCONTRADO NA BASE: ${nomePrecedente({ tipo, numero })}.`,
-						c ? `A base cobre deste tipo os números ${c.de} a ${c.ate}, conforme a planilha oficial de ${base.dataFonte.split("-").reverse().join("/")}.` : "",
-						"Isso não significa que o precedente não exista: pode ser posterior à fonte usada. Não escreva a tese de memória; confira no portal do STJ e avise o usuário.",
+						c && fonte ? `A base cobre deste tipo os números ${c.de} a ${c.ate}, conforme a planilha oficial de ${dataBr(fonte.dataFonte)}.` : "",
+						`Isso não significa que o precedente não exista: pode ser posterior à fonte usada. Não escreva a tese de memória; confira no portal do ${tribunal} e avise o usuário.`,
+						outro ? `Com esse número existe, no outro tribunal, o ${nomePrecedente(outro)}.` : "",
 						"",
 						rodape(base),
 					]
-						.filter((l, i) => l !== "" || i === 3)
+						.filter((l, i, todas) => l !== "" || i === todas.length - 2)
 						.join("\n"),
 				),
 			);
@@ -158,7 +201,7 @@ function radical(t: string): string {
 }
 
 function termosDe(s: string): string[] {
-	return (semAcento(s).match(/[0-9a-z]+/g) ?? []).filter((t) => (t.length >= 3 || /^\d{2,}$/.test(t)) && !VAZIAS.has(t)).map(radical);
+	return (semAcento(s.replace(/¿/g, " ")).match(/[0-9a-z]+/g) ?? []).filter((t) => (t.length >= 3 || /^\d{2,}$/.test(t)) && !VAZIAS.has(t)).map(radical);
 }
 
 interface Indexado {
@@ -175,11 +218,13 @@ function indiceDaBase(base: BasePrecedentes): { itens: Indexado[]; frequencia: M
 	if (indice) return indice;
 	const frequencia = new Map<string, number>();
 	const itens = base.todos.map((registro) => {
-		const questao = new Set(termosDe(registro.questao));
+		// no STF o título do tema é o melhor resumo da questão
+		const enunciadoDaQuestao = `${registro.titulo ?? ""} ${registro.questao}`;
+		const questao = new Set(termosDe(enunciadoDaQuestao));
 		const tese = new Set(termosDe(registro.tese));
-		const anotacoes = new Set(termosDe(registro.anotacoes));
+		const anotacoes = new Set(termosDe(`${registro.anotacoes} ${registro.assunto ?? ""}`));
 		for (const t of new Set([...questao, ...tese])) frequencia.set(t, (frequencia.get(t) ?? 0) + 1);
-		return { registro, questao, tese, anotacoes, corrido: semAcento(`${registro.questao} ${registro.tese}`) };
+		return { registro, questao, tese, anotacoes, corrido: semAcento(`${enunciadoDaQuestao} ${registro.tese}`.replace(/¿/g, " ")) };
 	});
 	indice = { itens, frequencia };
 	return indice;
@@ -218,14 +263,19 @@ function pesquisar(base: BasePrecedentes, consulta: string, filtro: (r: Registro
 		if (frase.length >= 8 && item.corrido.includes(frase)) nota += 1;
 		achados.push({ registro: item.registro, nota });
 	}
-	achados.sort((a, b) => b.nota - a.nota || a.registro.numero - b.registro.numero);
+	// empate: STJ antes do STF, depois o número
+	achados.sort((a, b) => b.nota - a.nota || (a.registro.tribunal === b.registro.tribunal ? a.registro.numero - b.registro.numero : a.registro.tribunal === "STJ" ? -1 : 1));
 	return achados;
 }
 
 function itemDaBusca(r: RegistroPrecedente, indiceItem: number): string[] {
-	const linhas = [`${indiceItem}. ${nomePrecedente(r)} — ${descricaoSituacao(r)}${r.orgao_julgador ? ` · ${r.orgao_julgador}` : ""} (${r.id})`];
-	if (r.questao) linhas.push(`   Questão: ${r.questao}`);
-	linhas.push(r.tese ? `   Tese (literal): ${r.tese}` : "   Tese: não há tese registrada.");
+	const complemento = r.orgao_julgador || r.ramo_direito;
+	const linhas = [`${indiceItem}. ${nomePrecedente(r)} — ${descricaoSituacao(r)}${complemento ? ` · ${complemento}` : ""} (${r.id})`];
+	if (r.titulo) linhas.push(`   Tema: ${r.titulo}`);
+	else if (r.questao) linhas.push(`   Questão: ${r.questao}`);
+	if (!r.tese) linhas.push("   Tese: não há tese registrada.");
+	else if (r.situacao === "rg_negada") linhas.push(`   Enunciado (literal; não é tese de mérito): ${r.tese}`);
+	else linhas.push(`   Tese (literal${teseTruncada(r) ? ", INCOMPLETA na fonte" : ""}): ${r.tese}`);
 	if (r.suspensao && r.situacao !== "transitado") linhas.push(`   Suspensão: ${r.suspensao}`);
 	linhas.push(...linhasDeAlerta(r, "   ").filter((l) => l.includes("Atenção")));
 	return linhas;
@@ -234,8 +284,9 @@ function itemDaBusca(r: RegistroPrecedente, indiceItem: number): string[] {
 const ROTULO_SITUACAO: Record<SituacaoPrecedente, string> = {
 	transitado: "transitados em julgado",
 	tese_sem_transito: "com tese ainda sem trânsito em julgado",
-	afetado: "afetados ou em julgamento",
+	afetado: "afetados, em julgamento ou com mérito pendente",
 	revisado: "com tese revisada",
+	rg_negada: "com repercussão geral negada",
 	cancelado: "cancelados",
 	outro: "sem tese (controvérsias, SIRDR e pendentes)",
 };
@@ -243,15 +294,17 @@ const ROTULO_SITUACAO: Record<SituacaoPrecedente, string> = {
 export const buscarPrecedentes: Ferramenta = {
 	name: "buscar_precedentes",
 	description:
-		"Pesquisa os precedentes qualificados do STJ (temas repetitivos, IAC, temas de relevância) pela questão jurídica, para saber se um caso tem precedente aplicável. A busca é por palavras da questão julgada e da tese, sem diferenciar acentos, maiúsculas e plural, e é determinística: a mesma consulta devolve sempre o mesmo resultado. Descreva a questão com os termos jurídicos do caso (ex.: \"prescrição PASEP saque\", \"honorários advocatícios Fazenda Pública equidade\") e repita com outras formulações antes de concluir que não há precedente. Também aceita o número de um processo paradigma (ex.: \"REsp 1895936\"). O resultado separa as teses TRANSITADAS EM JULGADO, que podem ser aplicadas, de um bloco de ATENÇÃO com temas afetados (com a ordem de suspensão), teses ainda sem trânsito e teses revisadas, que devem ser informados ao usuário e não tratados como tese definitiva. Devolve o texto literal de cada tese. Não cobre o STF.",
+		"Pesquisa os precedentes qualificados do STJ (temas repetitivos, IAC, temas de relevância) e do STF (temas de repercussão geral) pela questão jurídica, para saber se um caso tem precedente aplicável. A busca é por palavras da questão julgada e da tese, sem diferenciar acentos, maiúsculas e plural, e é determinística: a mesma consulta devolve sempre o mesmo resultado. Descreva a questão com os termos jurídicos do caso (ex.: \"prescrição PASEP saque\", \"medicamento não incorporado SUS\") e repita com outras formulações antes de concluir que não há precedente. Também aceita o número de um processo paradigma (ex.: \"REsp 1895936\", \"RE 1366243\"). O resultado separa: as teses TRANSITADAS EM JULGADO, que podem ser aplicadas; um bloco de ATENÇÃO com temas afetados ou de mérito pendente (com a suspensão de processos), teses ainda sem trânsito e teses revisadas; e os temas do STF com repercussão geral NEGADA, que não são tese de mérito. Os blocos de atenção devem ser informados ao usuário e não tratados como tese definitiva. Devolve o texto literal de cada tese.",
 	annotations: SOMENTE_LEITURA,
 	inputSchema: {
 		type: "object",
 		properties: {
 			termo: { type: "string", description: "Palavras da questão jurídica, ou o número de um processo paradigma." },
-			orgao: { type: "string", enum: ORGAOS, description: "Restringe pelo órgão julgador: PRIMEIRA SEÇÃO (direito público), SEGUNDA SEÇÃO (direito privado), TERCEIRA SEÇÃO (penal), CORTE ESPECIAL. Vazio: todos." },
-			tipo: { type: "string", enum: ["tema", "iac", "relevancia", "controversia", "sirdr"], description: "Restringe pelo tipo. Vazio: temas repetitivos, IAC e temas de relevância." },
-			situacao: { type: "string", enum: SITUACOES, description: "Mostra só uma classe de situação (ex.: cancelado). Vazio: transitados, mais o bloco de atenção." },
+			tribunal: { type: "string", enum: ["STJ", "STF"], description: "Restringe a um tribunal. Vazio: os dois." },
+			orgao: { type: "string", enum: ORGAOS, description: "Só STJ. Restringe pelo órgão julgador: PRIMEIRA SEÇÃO (direito público), SEGUNDA SEÇÃO (direito privado), TERCEIRA SEÇÃO (penal), CORTE ESPECIAL." },
+			ramo: { type: "string", description: 'Só STF. Restringe pelo ramo do direito, ex.: "tributário", "previdenciário", "penal".' },
+			tipo: { type: "string", enum: ["tema", "iac", "relevancia", "controversia", "sirdr", "rg"], description: "Restringe pelo tipo. Vazio: temas repetitivos, IAC e temas de relevância do STJ e temas de repercussão geral do STF." },
+			situacao: { type: "string", enum: SITUACOES, description: "Mostra só uma classe de situação (ex.: cancelado). Vazio: transitados, mais os blocos de atenção." },
 			limite: { type: "integer", minimum: 1, maximum: 30, description: "Máximo de teses transitadas a devolver. Padrão: 8.", default: 8 },
 		},
 		required: ["termo"],
@@ -262,17 +315,20 @@ export const buscarPrecedentes: Ferramenta = {
 		const termo = typeof args.termo === "string" ? args.termo.trim() : "";
 		if (!termo) throw new ErroFerramenta('O parâmetro "termo" é obrigatório.');
 		const orgao = lerOrgao(args.orgao);
+		const ramo = typeof args.ramo === "string" ? semAcento(args.ramo) : "";
 		const tipo = lerTipo(args.tipo, undefined);
+		const tribunal = lerTribunal(args.tribunal) ?? (tipo ? tribunalDoTipo(tipo) : orgao ? "STJ" : ramo ? "STF" : undefined);
 		const situacao = lerSituacao(args.situacao);
 		const limiteBruto = Number(args.limite ?? 8);
 		const limite = Math.min(30, Math.max(1, Number.isFinite(limiteBruto) ? Math.floor(limiteBruto) : 8));
-		const doTipo = (r: RegistroPrecedente) => (tipo ? r.tipo === tipo : r.tipo === "TEMA" || r.tipo === "IAC" || r.tipo === "RELEVANCIA" || situacao !== undefined);
-		const filtro = (r: RegistroPrecedente) => doTipo(r) && (!orgao || r.orgao_julgador === orgao);
+		const doTipo = (r: RegistroPrecedente) => (tipo ? r.tipo === tipo : r.tipo === "TEMA" || r.tipo === "IAC" || r.tipo === "RELEVANCIA" || r.tipo === "RG" || situacao !== undefined);
+		const filtro = (r: RegistroPrecedente) =>
+			doTipo(r) && (!tribunal || r.tribunal === tribunal) && (!orgao || r.orgao_julgador === orgao) && (!ramo || semAcento(r.ramo_direito ?? "").includes(ramo));
 
 		// número de processo paradigma
-		const processo = /^(?:[A-Za-z ]{0,20})?(?:n[.ºo°]{0,2}\s*)?(\d[\d.]{4,}\d)(?:\s*[/-]\s*[A-Za-z]{2})?$/.exec(termo);
+		const processo = /^([A-Za-zÀ-ú ]{0,24}?)\s*(?:n[.ºo°]{0,2}\s*)?(\d[\d.]{4,}\d)(?:\s*[/-]\s*[A-Za-z]{2})?$/.exec(termo);
 		if (processo) {
-			const achados = base.porParadigma(processo[1].replace(/\D/g, ""));
+			const achados = base.porParadigma(processo[2].replace(/\D/g, ""), tribunal ?? tribunalDaClasse(processo[1]));
 			if (achados.length === 0) return Promise.resolve(texto(`Nenhum precedente da base tem como paradigma o processo "${termo}".\n\n${rodape(base)}`));
 			const linhas = [`${achados.length} precedente(s) com o processo "${termo}" entre os paradigmas:`, ""];
 			achados.forEach((r, i) => linhas.push(...itemDaBusca(r, i + 1), ""));
@@ -289,14 +345,19 @@ export const buscarPrecedentes: Ferramenta = {
 		} else {
 			const firmes = achados.filter((a) => a.registro.situacao === "transitado" && a.registro.tese);
 			const atencao = achados.filter((a) => a.registro.situacao === "tese_sem_transito" || a.registro.situacao === "afetado" || a.registro.situacao === "revisado" || (a.registro.situacao === "transitado" && !a.registro.tese));
-			const outros = achados.length - firmes.length - atencao.length;
+			const negadas = achados.filter((a) => a.registro.situacao === "rg_negada");
+			const outros = achados.length - firmes.length - atencao.length - negadas.length;
 			linhas.push(`TESES TRANSITADAS EM JULGADO para "${termo}": ${firmes.length}${firmes.length > limite ? `; mostrando as ${limite} mais próximas` : ""}`, "");
 			if (firmes.length === 0) linhas.push("Nenhuma tese transitada em julgado casou com a consulta. Tente outra formulação (sinônimos, o instituto jurídico, o diploma legal) antes de concluir que não há precedente.", "");
 			firmes.slice(0, limite).forEach((a, i) => linhas.push(...itemDaBusca(a.registro, i + 1), ""));
+			const teto = Math.max(5, Math.ceil(limite / 2));
 			if (atencao.length) {
-				const teto = Math.max(5, Math.ceil(limite / 2));
-				linhas.push(`ATENÇÃO — sem trânsito em julgado, afetados ou revisados: ${atencao.length}${atencao.length > teto ? `; mostrando ${teto}` : ""}. Informe ao usuário; não trate como tese definitiva.`, "");
+				linhas.push(`ATENÇÃO — sem trânsito em julgado, afetados, de mérito pendente ou revisados: ${atencao.length}${atencao.length > teto ? `; mostrando ${teto}` : ""}. Informe ao usuário; não trate como tese definitiva.`, "");
 				atencao.slice(0, teto).forEach((a, i) => linhas.push(...itemDaBusca(a.registro, i + 1), ""));
+			}
+			if (negadas.length) {
+				linhas.push(`SEM REPERCUSSÃO GERAL (STF) — a repercussão geral foi negada; não há tese de mérito: ${negadas.length}${negadas.length > teto ? `; mostrando ${teto}` : ""}. Serve para saber que o STF considera a matéria infraconstitucional ou sem relevância.`, "");
+				negadas.slice(0, teto).forEach((a, i) => linhas.push(...itemDaBusca(a.registro, i + 1), ""));
 			}
 			if (outros > 0) linhas.push(`Também casaram ${outros} registro(s) cancelado(s) ou sem tese; para vê-los, repita com situacao="cancelado" ou situacao="outro".`, "");
 		}
@@ -321,16 +382,16 @@ const ROTULO_RESULTADO: Record<ResultadoPrecedente, string> = {
 };
 
 const TEXTO_VEREDITO: Record<VereditoPrecedentes, string> = {
-	INTEGRALMENTE_VERIFICADO: "INTEGRALMENTE VERIFICADO — toda transcrição confere com a tese oficial e todos os precedentes citados transitaram em julgado, sem ressalva nas anotações.",
-	VERIFICADO_COM_RESSALVAS: "VERIFICADO COM RESSALVAS — nenhuma palavra diverge, mas há precedente sem trânsito em julgado, afetado, revisado ou com anotação de revisão, referência sem tribunal ou diferença de forma. Veja os itens.",
+	INTEGRALMENTE_VERIFICADO: "INTEGRALMENTE VERIFICADO — toda transcrição confere com a tese oficial e todos os precedentes citados transitaram em julgado, sem ressalva.",
+	VERIFICADO_COM_RESSALVAS: "VERIFICADO COM RESSALVAS — nenhuma palavra diverge, mas há precedente sem trânsito em julgado, afetado, revisado, de repercussão geral negada ou com aviso de revisão, tese incompleta na fonte, referência sem tribunal ou diferença de forma. Veja os itens.",
 	NAO_VERIFICADO: "NÃO VERIFICADO — há transcrição divergente, precedente ausente da base ou precedente cancelado citado sem ressalva. Corrija os itens antes de entregar o texto.",
-	SEM_REFERENCIAS: "SEM REFERÊNCIAS — o detector não encontrou referência numerada a tema repetitivo ou IAC do STJ.",
+	SEM_REFERENCIAS: "SEM REFERÊNCIAS — o detector não encontrou referência numerada a tema do STJ ou do STF nem a IAC do STJ.",
 };
 
 function itemRelatorio(c: ConferenciaPrecedente, indiceItem: number): string[] {
 	const linhas = [`${indiceItem}. Linha ${c.linha} — "${c.mencao}" → ${ROTULO_RESULTADO[c.resultado]}`];
 	const r = c.precedente;
-	if (r) linhas.push(`   ${nomePrecedente(r)} — situação no STJ: ${descricaoSituacao(r)} (${r.id})`);
+	if (r) linhas.push(`   ${nomePrecedente(r)} — situação no ${r.tribunal}: ${descricaoSituacao(r)} (${r.id})`);
 	if (c.alertaSituacao) linhas.push(`   ALERTA: ${c.alertaSituacao}`);
 	if (c.transcricao && c.resultado !== "CONFERE_LITERAL") linhas.push(`   Citado:  “${c.transcricao}”`);
 	if (r?.tese && c.resultado !== "CONFERE_LITERAL" && c.resultado !== "CONFERE_TRECHO") linhas.push(`   Oficial: “${r.tese}”`);
@@ -343,7 +404,7 @@ function itemRelatorio(c: ConferenciaPrecedente, indiceItem: number): string[] {
 }
 
 export function relatorioPrecedentesEmTexto(relatorio: RelatorioPrecedentes, base: BasePrecedentes): string {
-	const linhas = ["VERIFICAÇÃO DE PRECEDENTES QUALIFICADOS DO STJ", `Veredito: ${TEXTO_VEREDITO[relatorio.veredito]}`];
+	const linhas = ["VERIFICAÇÃO DE PRECEDENTES QUALIFICADOS (STJ E STF)", `Veredito: ${TEXTO_VEREDITO[relatorio.veredito]}`];
 	if (relatorio.conferencias.length > 0) {
 		const partes = Object.entries(relatorio.contagem).map(([k, v]) => `${v} ${k === "ALERTA_DE_SITUACAO" ? "alerta(s) de situação" : ROTULO_RESULTADO[k as ResultadoPrecedente].toLowerCase()}`);
 		linhas.push(`Referências conferidas: ${relatorio.conferencias.length} (${partes.join("; ")}).`, "");
@@ -359,7 +420,7 @@ export function relatorioPrecedentesEmTexto(relatorio: RelatorioPrecedentes, bas
 		linhas.push("");
 	}
 	if (relatorio.foraDoEscopo.length) {
-		linhas.push("Temas do STF e de outros tribunais, que a base não cobre (não conferidos):", ...relatorio.foraDoEscopo.map((f) => `   Linha ${f.linha} — "${f.mencao}" (${f.tribunal})`), "");
+		linhas.push("Referências que a base não cobre (não conferidas):", ...relatorio.foraDoEscopo.map((f) => `   Linha ${f.linha} — "${f.mencao}" (${f.tribunal})`), "");
 	}
 	linhas.push(
 		"Alcance: a conferência é feita por código, sem modelo de linguagem, e cobre as referências numeradas a tema e a IAC que o detector reconheceu. Confere a existência, a situação e o texto transcrito; não avalia se a tese se aplica ao caso.",
@@ -382,6 +443,7 @@ function relatorioEmJson(relatorio: RelatorioPrecedentes): string {
 				mencao: c.mencao,
 				resultado: c.resultado,
 				id: c.precedente?.id,
+				tribunal: c.precedente?.tribunal,
 				situacao: c.precedente?.situacao,
 				situacao_original: c.precedente?.situacao_original,
 				alerta_situacao: c.alertaSituacao,
@@ -401,7 +463,7 @@ function relatorioEmJson(relatorio: RelatorioPrecedentes): string {
 export const verificarCitacoesPrecedentes: Ferramenta = {
 	name: "verificar_citacoes_precedentes",
 	description:
-		"Confere, por código e sem modelo de linguagem, todas as referências a temas repetitivos e IAC do STJ em um texto jurídico (minuta, voto, decisão, petição). Para cada referência, diz se o precedente existe, qual a situação (trânsito em julgado, sem trânsito, afetado, revisado, cancelado), se a tese transcrita confere palavra por palavra com a tese oficial, e mostra as diferenças. Aponta precedente cancelado citado sem ressalva e número que não corresponde ao texto transcrito, e relaciona os temas do STF, que a base não cobre. Termina com um veredito do documento. Use ao analisar um documento recebido e SEMPRE antes de entregar um texto que cite tema do STJ. A ferramenta não altera o texto: aplique você as correções e verifique de novo.",
+		"Confere, por código e sem modelo de linguagem, todas as referências a temas repetitivos e IAC do STJ e a temas de repercussão geral do STF em um texto jurídico (minuta, voto, decisão, petição). Para cada referência, diz se o precedente existe, qual a situação (trânsito em julgado, sem trânsito, afetado, revisado, repercussão geral negada, cancelado), se a tese transcrita confere palavra por palavra com a tese oficial, e mostra as diferenças. Aponta precedente cancelado citado sem ressalva, tema de repercussão geral negada citado como tese e número que não corresponde ao texto transcrito. Termina com um veredito do documento. Use ao analisar um documento recebido e SEMPRE antes de entregar um texto que cite tema do STJ ou do STF. A ferramenta não altera o texto: aplique você as correções e verifique de novo.",
 	annotations: SOMENTE_LEITURA,
 	inputSchema: {
 		type: "object",
@@ -423,4 +485,4 @@ export const verificarCitacoesPrecedentes: Ferramenta = {
 export const FERRAMENTAS_PRECEDENTES_NUCLEO: Ferramenta[] = [obterPrecedente, buscarPrecedentes, verificarCitacoesPrecedentes];
 
 export const INSTRUCOES_PRECEDENTES =
-	"Precedentes qualificados do STJ (temas repetitivos e IAC): nunca transcreva tese de memória. Ao analisar um processo, chame buscar_precedentes com a questão jurídica, em duas ou três formulações, para saber se há precedente aplicável; antes de citar, chame obter_precedente e copie a tese devolvida. Só trate como tese definitiva o precedente com trânsito em julgado; tema afetado, tese sem trânsito, tese revisada e os avisos das anotações do STJ devem ser informados ao usuário. Antes de entregar um texto que cite tema do STJ, chame verificar_citacoes_precedentes com o texto integral e corrija o que não conferir. A base não cobre os temas de repercussão geral do STF.";
+	"Precedentes qualificados (temas repetitivos e IAC do STJ; temas de repercussão geral do STF): nunca transcreva tese de memória. Ao analisar um processo, chame buscar_precedentes com a questão jurídica, em duas ou três formulações, para saber se há precedente aplicável; antes de citar, chame obter_precedente (tribunal=\"STF\" para tema do STF) e copie a tese devolvida. Só trate como tese definitiva o precedente com trânsito em julgado; tema afetado ou de mérito pendente (com a suspensão de processos), tese sem trânsito, tese revisada e os avisos devolvidos devem ser informados ao usuário. Tema do STF com repercussão geral negada não é tese de mérito. Tese marcada como incompleta na fonte não pode ser completada de memória. Antes de entregar um texto que cite tema do STJ ou do STF, chame verificar_citacoes_precedentes com o texto integral e corrija o que não conferir.";

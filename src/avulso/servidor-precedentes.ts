@@ -1,10 +1,11 @@
 /**
  * Projurista Precedentes — servidor MCP avulso (stdio), sem Obsidian.
- * Um arquivo só, sem dependências e sem rede: a base de precedentes qualificados do STJ vai embutida.
+ * Um arquivo só, sem dependências e sem rede: as bases de precedentes qualificados do STJ e do STF vão embutidas.
  *
  *   node projurista-precedentes.mjs                          servidor MCP por stdio
- *   node projurista-precedentes.mjs obter <tema|iac> <número>
- *   node projurista-precedentes.mjs buscar "<questão jurídica>" [--limite N]
+ *   node projurista-precedentes.mjs obter <tema|iac> <número>       precedente do STJ
+ *   node projurista-precedentes.mjs obter stf <número>              tema de repercussão geral do STF
+ *   node projurista-precedentes.mjs buscar "<questão jurídica>" [--tribunal STJ|STF] [--limite N]
  *   node projurista-precedentes.mjs verificar <arquivo> [--json]
  *   node projurista-precedentes.mjs --versao
  *
@@ -44,19 +45,24 @@ async function linhaDeComando(args: string[]): Promise<number> {
 		return reprovado ? 1 : 0;
 	}
 	if (comando === "obter" && args[1]) {
-		const argumentos = args[2] ? { tipo: args[1], numero: args[2] } : { numero: args[1] };
+		const stf = /^(stf|rg)$/i.test(args[1]);
+		const argumentos = !args[2] ? { numero: args[1] } : stf ? { tribunal: "STF", numero: args[2] } : { tipo: args[1], numero: args[2] };
 		const resultado = await obterPrecedente.executar(argumentos, contexto);
 		escrever(resultado.content[0].text);
 		return 0;
 	}
 	if (comando === "buscar" && args[1]) {
 		const posicaoLimite = args.indexOf("--limite");
-		const resultado = await buscarPrecedentes.executar({ termo: args[1], limite: posicaoLimite > 0 ? Number(args[posicaoLimite + 1]) : undefined }, contexto);
+		const posicaoTribunal = args.indexOf("--tribunal");
+		const resultado = await buscarPrecedentes.executar(
+			{ termo: args[1], limite: posicaoLimite > 0 ? Number(args[posicaoLimite + 1]) : undefined, tribunal: posicaoTribunal > 0 ? args[posicaoTribunal + 1] : undefined },
+			contexto,
+		);
 		escrever(resultado.content[0].text);
 		return 0;
 	}
 	process.stderr.write(
-		'Uso: projurista-precedentes [obter <tema|iac> <número> | buscar "<questão jurídica>" [--limite N] | verificar <arquivo> [--json] | --versao]\nSem argumentos, inicia o servidor MCP por stdio.\n',
+		'Uso: projurista-precedentes [obter <tema|iac> <número> | obter stf <número> | buscar "<questão jurídica>" [--tribunal STJ|STF] [--limite N] | verificar <arquivo> [--json] | --versao]\nSem argumentos, inicia o servidor MCP por stdio.\n',
 	);
 	return 2;
 }
@@ -69,7 +75,7 @@ function servidor(): void {
 			ferramentas: FERRAMENTAS_PRECEDENTES_NUCLEO,
 			contexto: () => contexto,
 			escritaPermitida: () => false,
-			instrucoes: () => `Servidor de precedentes qualificados do STJ da Projurista (base embutida, sem rede). ${INSTRUCOES_PRECEDENTES}`,
+			instrucoes: () => `Servidor de precedentes qualificados do STJ e do STF da Projurista (bases embutidas, sem rede). ${INSTRUCOES_PRECEDENTES}`,
 		}),
 	);
 }

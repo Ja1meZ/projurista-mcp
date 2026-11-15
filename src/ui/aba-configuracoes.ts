@@ -178,12 +178,12 @@ export class AbaConfiguracoes extends PluginSettingTab {
 			},
 			{
 				type: "group",
-				heading: "Precedentes do STJ",
+				heading: "Precedentes do STJ e do STF",
 				items: [
 					{
 						name: "Ferramentas de precedentes qualificados",
-						desc: `O Claude pesquisa os temas repetitivos e os IAC do STJ pela questão jurídica, copia a tese literal e confere as citações de um documento, sem internet. Só a tese transitada em julgado é tratada como definitiva. Base ${basePrecedentes().versao}: ${resumoCoberturaPrecedentes(basePrecedentes())}.`,
-						aliases: ["precedente", "tema repetitivo", "repetitivo", "iac", "stj", "tese"],
+						desc: `O Claude pesquisa os temas repetitivos e os IAC do STJ e os temas de repercussão geral do STF pela questão jurídica, copia a tese literal e confere as citações de um documento, sem internet. Só a tese transitada em julgado é tratada como definitiva. Bases ${basePrecedentes().versao}. ${resumoCoberturaPrecedentes(basePrecedentes())}.`,
+						aliases: ["precedente", "tema repetitivo", "repetitivo", "iac", "stj", "stf", "repercussão geral", "tese"],
 						control: { type: "toggle", key: "ferramentasPrecedentes", defaultValue: CONFIGURACOES_PADRAO.ferramentasPrecedentes },
 					},
 				],

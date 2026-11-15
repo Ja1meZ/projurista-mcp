@@ -19,7 +19,7 @@ export interface ConfiguracoesProjurista {
 	limiteCaracteres: number;
 	/** Anuncia as ferramentas de súmulas (STF, STJ, TJPE), que usam a base embutida no plugin. */
 	ferramentasSumulas: boolean;
-	/** Anuncia as ferramentas de precedentes qualificados do STJ, que usam a base embutida no plugin. */
+	/** Anuncia as ferramentas de precedentes qualificados do STJ e do STF, que usam as bases embutidas no plugin. */
 	ferramentasPrecedentes: boolean;
 }
 

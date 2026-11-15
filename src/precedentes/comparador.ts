@@ -1,8 +1,8 @@
 import { Diferenca, chaveForma, comparavel, diferencas, palavras, palavrasVisiveis, semelhanca } from "../sumulas/normalizar";
 import type { BasePrecedentes } from "./base";
-import { nomePrecedente } from "./base";
+import { dataBr, nomePrecedente, tribunalDaClasse } from "./base";
 import { ReferenciaPrecedente, detectarPrecedentes } from "./detector";
-import type { AlertaPrecedente, RegistroPrecedente } from "./tipos";
+import type { AlertaPrecedente, RegistroPrecedente, TribunalPrecedente } from "./tipos";
 
 export type ResultadoPrecedente =
 	| "CONFERE_LITERAL"
@@ -34,7 +34,7 @@ export interface RelatorioPrecedentes {
 	versaoBase: string;
 	conferencias: ConferenciaPrecedente[];
 	contagem: Record<string, number>;
-	/** Temas do STF e de outros tribunais: relacionados, não conferidos. */
+	/** Temas de tribunais que a base não cobre: relacionados, não conferidos. */
 	foraDoEscopo: { linha: number; mencao: string; tribunal: string }[];
 	/** Processos citados no texto que são paradigma de algum precedente da base. */
 	paradigmasCitados: { linha: number; mencao: string; precedentes: RegistroPrecedente[] }[];
@@ -45,9 +45,13 @@ const RE_RESSALVA = /cancelad|revogad|superad|revisad|revis[ãa]o|n[ãa]o (?:mai
 
 export const TEXTO_ALERTA: Record<string, (detalhe?: string) => string> = {
 	TESE_PENDENTE_DE_PUBLICACAO: (d) => `O STJ ainda não publicou a tese deste precedente (no campo da tese consta: "${d ?? ""}").`,
-	SEM_TESE_NA_FONTE: () => "O STJ não registra tese neste precedente: leia as anotações.",
+	SEM_TESE_NA_FONTE: () => "A fonte oficial não registra tese neste precedente.",
+	TESE_COMPLETADA_PELO_PORTAL: (d) => `A planilha do STF corta a tese; o texto foi completado pela página do tema no portal do STF (${d ?? ""}).`,
+	TESE_TRUNCADA_NA_FONTE: (d) => `TESE INCOMPLETA: as fontes oficiais usadas cortam o texto desta tese (${d ?? ""}). A base só tem o começo; para citar a tese inteira, use o acórdão ou a nota do cofre.`,
+	CARACTERES_CORROMPIDOS_NA_FONTE: (d) => `A fonte oficial traz caracteres corrompidos na tese (${d ?? ""}); na citação pronta eles foram trocados por espaço.`,
+	SUSPENSAO_NACIONAL_VIGENTE: (d) => `Suspensão nacional vigente${d ? `, determinada em ${dataBr(d)}` : ""}: verifique se o processo deve ser sobrestado.`,
 	POSSIVEL_REVISAO_DE_TESE: () => "Tema afetado para possível revisão da tese.",
-	MODULACAO_DE_EFEITOS: () => "As anotações do STJ mencionam modulação de efeitos: confira o marco temporal antes de aplicar.",
+	MODULACAO_DE_EFEITOS: () => "A tese, a decisão de julgamento ou as anotações mencionam modulação de efeitos: confira o marco temporal antes de aplicar.",
 	REFERE_TEMA_STF: (d) => `As anotações ou a tese remetem ao(s) Tema(s) ${d ?? ""} do STF: confira se a tese do STJ subsiste diante do que o STF decidiu.`,
 	MENCIONA_REPERCUSSAO_GERAL: () => "As anotações mencionam repercussão geral no STF: confira o andamento.",
 	MENCIONA_SUPERACAO_OU_REVISAO: () => "As anotações mencionam revisão, superação, revogação ou cancelamento de tese: leia as anotações antes de aplicar.",
@@ -61,15 +65,15 @@ export function textoAlerta(a: AlertaPrecedente): string {
 }
 
 /** Alertas que pedem leitura das anotações antes de aplicar a tese (os demais são informativos). */
-const ALERTAS_DE_RESSALVA = new Set(["SEM_TESE_NA_FONTE", "TESE_PENDENTE_DE_PUBLICACAO", "POSSIVEL_REVISAO_DE_TESE", "MENCIONA_SUPERACAO_OU_REVISAO"]);
+const ALERTAS_DE_RESSALVA = new Set(["TESE_TRUNCADA_NA_FONTE", "SEM_TESE_NA_FONTE", "TESE_PENDENTE_DE_PUBLICACAO", "POSSIVEL_REVISAO_DE_TESE", "MENCIONA_SUPERACAO_OU_REVISAO"]);
 
 function semPontoFinal(s: string): string {
 	return s.replace(/[.\s]+$/, "");
 }
 
-/** Texto sem as aspas das pontas, com a tipografia unificada. */
+/** Texto sem as aspas das pontas, com a tipografia unificada. O "¿" é espaço corrompido na base do STF. */
 function nucleo(s: string): string {
-	return comparavel(s).replace(/^["'\s]+|["'\s]+$/g, "");
+	return comparavel(s.replace(/¿/g, " ")).replace(/^["'\s]+|["'\s]+$/g, "");
 }
 
 /**
@@ -204,12 +208,12 @@ function localizarPeloTexto(citado: string, base: BasePrecedentes, exceto?: stri
 	return melhor;
 }
 
-function dataBr(iso: string): string {
-	return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split("-").reverse().join("/") : iso;
-}
-
 export function descricaoSituacao(r: RegistroPrecedente): string {
 	return `${r.situacao_original || "sem situação"}${r.data_situacao ? `, ${dataBr(r.data_situacao)}` : ""}`;
+}
+
+export function teseTruncada(r: RegistroPrecedente): boolean {
+	return r.alertas.some((a) => a.codigo === "TESE_TRUNCADA_NA_FONTE");
 }
 
 function avaliarSituacao(r: RegistroPrecedente, texto: string, ref: ReferenciaPrecedente): { alerta?: string; notas: string[]; ressalva: boolean } {
@@ -217,7 +221,8 @@ function avaliarSituacao(r: RegistroPrecedente, texto: string, ref: ReferenciaPr
 	const notas: string[] = [];
 	let ressalva = false;
 	let alerta: string | undefined;
-	const suspensao = r.suspensao ? ` Suspensão determinada: ${r.suspensao}.` : "";
+	const suspensao = r.suspensao ? ` Suspensão: ${r.suspensao}.` : "";
+	const onde = `situação no ${r.tribunal}: ${descricaoSituacao(r)}`;
 	switch (r.situacao) {
 		case "transitado":
 			break;
@@ -229,60 +234,81 @@ function avaliarSituacao(r: RegistroPrecedente, texto: string, ref: ReferenciaPr
 			break;
 		}
 		case "tese_sem_transito":
-			notas.push(`O ${nome} ${r.tese ? "tem tese fixada, mas" : "foi julgado, mas"} ainda não transitou em julgado (situação no STJ: ${descricaoSituacao(r)}). Diga isso ao citar.${suspensao}`);
+			notas.push(`O ${nome} ${r.tese ? "tem tese fixada, mas" : "foi julgado, mas"} ainda não transitou em julgado (${onde}). Diga isso ao citar.${suspensao}`);
 			ressalva = true;
 			break;
 		case "afetado":
-			notas.push(`O ${nome} está em tramitação (situação no STJ: ${descricaoSituacao(r)})${r.tese ? "; a tese registrada pode ser revista" : "; não há tese firmada"}.${suspensao}`);
+			notas.push(`O ${nome} está em tramitação (${onde})${r.tese ? "; a tese registrada pode ser revista" : "; não há tese firmada"}.${suspensao}`);
 			ressalva = true;
 			break;
 		case "revisado":
 			notas.push(`O ${nome} teve a tese revisada (${descricaoSituacao(r)}): a base traz a redação que o STJ mantém no registro; confira se é a que o texto cita.`);
 			ressalva = true;
 			break;
+		case "rg_negada":
+			notas.push(`O ${nome} teve a repercussão geral negada (${descricaoSituacao(r)}): não há tese de mérito do STF. O enunciado só diz que a questão não tem repercussão geral; não o cite como entendimento do STF sobre o mérito.`);
+			ressalva = true;
+			break;
 		default:
-			notas.push(`O ${nome} está com situação "${r.situacao_original}" no STJ e não é tese firmada.`);
+			notas.push(`O ${nome} está com situação "${r.situacao_original}" no ${r.tribunal} e não é tese firmada.`);
 			ressalva = true;
 	}
 	for (const a of r.alertas) {
-		if (a.codigo === "VIDE") continue;
+		if (a.codigo === "VIDE" || a.codigo === "TESE_COMPLETADA_PELO_PORTAL" || a.codigo === "CARACTERES_CORROMPIDOS_NA_FONTE") continue;
 		notas.push(textoAlerta(a));
 		if (ALERTAS_DE_RESSALVA.has(a.codigo)) ressalva = true;
 	}
 	return { alerta, notas, ressalva };
 }
 
-function conferirReferencia(ref: ReferenciaPrecedente, texto: string, base: BasePrecedentes, tribunalDoTexto: Map<string, string | null>): ConferenciaPrecedente {
+function resumoCandidato(r: RegistroPrecedente): string {
+	return `${nomePrecedente(r)} (${descricaoSituacao(r)}): ${(r.titulo || r.questao).replace(/\s+/g, " ").slice(0, 260)}`;
+}
+
+function conferirReferencia(ref: ReferenciaPrecedente, texto: string, base: BasePrecedentes, tribunalDoTexto: Map<string, string | null>, numerosCitados: Set<number>): ConferenciaPrecedente {
 	const conferencia: ConferenciaPrecedente = { linha: ref.linha, mencao: ref.mencao, resultado: "SEM_TRANSCRICAO", notas: [], ressalva: false };
 	if (ref.transcricao) conferencia.transcricao = ref.transcricao.texto.replace(/\s+/g, " ").trim();
-	const registro = ref.tipo === "IAC" ? base.obter("IAC", ref.numero) : base.obterTema(ref.numero);
 	const rotulo = ref.tipo === "IAC" ? "IAC" : "tema";
+	const noTribunal = (t: TribunalPrecedente) => (ref.tipo === "IAC" ? (t === "STJ" ? base.obter("IAC", ref.numero) : undefined) : base.obterTema(ref.numero, t));
 
-	if (!ref.tribunal) {
+	let tribunal: TribunalPrecedente | null = ref.tribunal === "STJ" || ref.tribunal === "STF" ? ref.tribunal : null;
+	if (!tribunal) {
 		const doTexto = tribunalDoTexto.get(`${ref.tipo}:${ref.numero}`);
-		if (doTexto === "STJ") {
-			conferencia.notas.push(`A referência não diz o tribunal; adotado o STJ, indicado em outra referência ao mesmo ${rotulo} neste texto.`);
-		} else if (registro?.tese && ref.transcricao && confere(cotejarTese(ref.transcricao.texto, registro.tese).resultado)) {
-			conferencia.notas.push("A referência não diz o tribunal; identificada como do STJ pelo texto transcrito.");
+		if (doTexto === "STJ" || doTexto === "STF") {
+			tribunal = doTexto;
+			conferencia.notas.push(`A referência não diz o tribunal; adotado o ${tribunal}, indicado em outra referência ao mesmo ${rotulo} neste texto.`);
 		} else {
-			conferencia.resultado = "AMBIGUA";
-			conferencia.ressalva = true;
-			delete conferencia.transcricao;
-			conferencia.notas.push(
-				registro
-					? `A referência não diz de qual tribunal é o ${rotulo}. No STJ, o ${nomePrecedente(registro)} (${descricaoSituacao(registro)}) trata de: ${registro.questao.replace(/\s+/g, " ")}`
-					: `A referência não diz de qual tribunal é o ${rotulo}, e o STJ não tem ${rotulo} com esse número na base.`,
-				"Escreva o tribunal por extenso (\"do STJ\", \"do STF\") para que a referência seja conferida.",
-			);
-			return conferencia;
+			const candidatos = (["STJ", "STF"] as TribunalPrecedente[]).map(noTribunal).filter((r): r is RegistroPrecedente => r !== undefined);
+			const pelosTextos = ref.transcricao ? candidatos.filter((r) => r.tese && confere(cotejarTese(ref.transcricao!.texto, r.tese).resultado)) : [];
+			if (pelosTextos.length === 1) {
+				tribunal = pelosTextos[0].tribunal;
+				conferencia.notas.push(`A referência não diz o tribunal; identificada como do ${tribunal} pelo texto transcrito.`);
+			} else {
+				conferencia.resultado = "AMBIGUA";
+				conferencia.ressalva = true;
+				delete conferencia.transcricao;
+				conferencia.notas.push(
+					candidatos.length
+						? `A referência não diz de qual tribunal é o ${rotulo}. Com esse número a base tem: ${candidatos.map(resumoCandidato).join(" | ")}`
+						: `A referência não diz de qual tribunal é o ${rotulo}, e a base não tem ${rotulo} com esse número no STJ nem no STF.`,
+					"Escreva o tribunal por extenso (\"do STJ\", \"do STF\") para que a referência seja conferida.",
+				);
+				return conferencia;
+			}
 		}
 	}
 
+	const registro = noTribunal(tribunal);
 	if (!registro) {
 		conferencia.resultado = "NAO_ENCONTRADO_NA_BASE";
-		const c = base.cobertura[ref.tipo];
+		const tipo = tribunal === "STF" ? "RG" : ref.tipo;
+		const c = base.cobertura[tipo];
+		const fonte = base.fontes[tribunal];
+		const quais = tipo === "RG" ? "os temas de repercussão geral" : tipo === "IAC" ? "os IAC" : "os temas repetitivos";
 		conferencia.notas.push(
-			`A base cobre ${ref.tipo === "IAC" ? "os IAC" : "os temas repetitivos"} ${c.de} a ${c.ate} do STJ, conforme a planilha oficial de ${dataBr(base.dataFonte)}. Não constar da base não significa que não exista: confira no portal do STJ.`,
+			c && fonte
+				? `A base cobre ${quais} ${c.de} a ${c.ate} do ${tribunal}, conforme a planilha oficial de ${dataBr(fonte.dataFonte)}. Não constar da base não significa que não exista: confira no portal do ${tribunal}.`
+				: `A base não tem ${quais} do ${tribunal}.`,
 		);
 		if (ref.transcricao?.comAspas) {
 			const outro = localizarPeloTexto(ref.transcricao.texto, base);
@@ -300,7 +326,7 @@ function conferirReferencia(ref: ReferenciaPrecedente, texto: string, base: Base
 	if (!ref.transcricao) return conferencia;
 	if (!registro.tese) {
 		if (ref.transcricao.comAspas) {
-			conferencia.notas.push("Há um trecho entre aspas junto à referência, mas o STJ não registra tese neste precedente: o trecho não pôde ser conferido.");
+			conferencia.notas.push(`Há um trecho entre aspas junto à referência, mas o ${registro.tribunal} não registra tese neste precedente: o trecho não pôde ser conferido.`);
 			conferencia.ressalva = true;
 		}
 		delete conferencia.transcricao;
@@ -312,6 +338,18 @@ function conferirReferencia(ref: ReferenciaPrecedente, texto: string, base: Base
 		// sem aspas, o trecho pode continuar além da tese: compara só o mesmo número de palavras
 		citado = palavrasVisiveis(citado).slice(0, palavrasVisiveis(registro.tese).length).join(" ");
 	}
+	const truncada = teseTruncada(registro);
+	if (truncada && ref.transcricao.comAspas) {
+		// a base só tem o começo desta tese: a transcrição integral confere até onde a base alcança
+		const c = inicialNeutra(semEspacos(nucleo(citado)));
+		const o = inicialNeutra(semEspacos(nucleo(registro.tese))).slice(0, -4);
+		if (c.length > o.length && c.startsWith(o)) {
+			conferencia.resultado = "CONFERE_TRECHO";
+			conferencia.ressalva = true;
+			conferencia.notas.push(`A transcrição confere com os primeiros ${registro.tese.length} caracteres da tese, que é o que a base tem; o restante não foi conferido.`);
+			return conferencia;
+		}
+	}
 	const cotejo = cotejarTese(citado, registro.tese);
 	if (confere(cotejo.resultado)) {
 		conferencia.resultado = cotejo.resultado;
@@ -319,13 +357,24 @@ function conferirReferencia(ref: ReferenciaPrecedente, texto: string, base: Base
 		if (cotejo.diferencas?.length) conferencia.diferencas = cotejo.diferencas;
 		return conferencia;
 	}
-	if (!ref.transcricao.comAspas && cotejo.contido < 0.7) {
+	// trecho curto demais, ou sem aspas e pouco parecido: não dá para dizer que é transcrição da tese
+	if (palavras(citado).length < 12 || (!ref.transcricao.comAspas && cotejo.contido < 0.7)) {
+		delete conferencia.transcricao;
+		return conferencia;
+	}
+	// o trecho é a tese de outro tema que o texto também cita (teses que remetem umas às outras)
+	const vizinho = localizarPeloTexto(citado, base, registro.id);
+	if (vizinho && numerosCitados.has(vizinho.numero) && cotejo.semelhanca < 0.5) {
+		conferencia.notas.push(`O trecho entre aspas junto à referência é do ${nomePrecedente(vizinho)}, também citado no texto; não foi tratado como transcrição deste tema.`);
 		delete conferencia.transcricao;
 		return conferencia;
 	}
 	if (cotejo.contido >= 0.6 || cotejo.semelhanca >= 0.5) {
 		conferencia.resultado = "DIVERGENTE";
-		conferencia.diferencas = cotejo.diferencas;
+		let difs = cotejo.diferencas ?? [];
+		// o que o texto cita além do ponto em que a base foi cortada não é divergência
+		if (truncada && difs.length && difs[difs.length - 1].oficial === "") difs = difs.slice(0, -1);
+		conferencia.diferencas = difs;
 		return conferencia;
 	}
 	const outro = localizarPeloTexto(citado, base, registro.id);
@@ -350,25 +399,29 @@ export function verificarPrecedentes(texto: string, base: BasePrecedentes): Rela
 		const anterior = tribunalDoTexto.get(chave);
 		tribunalDoTexto.set(chave, anterior === undefined || anterior === ref.tribunal ? ref.tribunal : null);
 	}
+	const numerosCitados = new Set(deteccao.referencias.map((r) => r.numero));
 	const conferencias: ConferenciaPrecedente[] = [];
 	const foraDoEscopo: RelatorioPrecedentes["foraDoEscopo"] = [];
 	for (const ref of deteccao.referencias) {
 		const herdado = ref.tribunal ?? tribunalDoTexto.get(`${ref.tipo}:${ref.numero}`) ?? null;
-		if (ref.tribunal === "STF" || ref.tribunal === "OUTRO" || (!ref.tribunal && (herdado === "STF" || herdado === "OUTRO"))) {
+		// tribunais que a base não cobre, e IAC do STF (a base do STF só tem temas de repercussão geral)
+		if (herdado === "OUTRO" || (herdado === "STF" && ref.tipo === "IAC")) {
 			const tribunal = herdado === "STF" ? "STF" : "outro tribunal";
 			if (!foraDoEscopo.some((f) => f.linha === ref.linha && f.mencao === ref.mencao)) foraDoEscopo.push({ linha: ref.linha, mencao: ref.mencao, tribunal });
 			continue;
 		}
-		conferencias.push(conferirReferencia(ref, normalizado, base, tribunalDoTexto));
+		conferencias.push(conferirReferencia(ref, normalizado, base, tribunalDoTexto, numerosCitados));
 	}
 
 	const citados = new Set(conferencias.map((c) => c.precedente?.id));
 	const paradigmasCitados: RelatorioPrecedentes["paradigmasCitados"] = [];
 	const vistos = new Set<string>();
 	for (const p of deteccao.processos) {
-		if (vistos.has(p.digitos)) continue;
-		vistos.add(p.digitos);
-		const precedentes = base.porParadigma(p.digitos).filter((r) => r.tipo !== "CONTROVERSIA" && r.tipo !== "SIRDR" && !citados.has(r.id));
+		const tribunal = tribunalDaClasse(p.classe);
+		const chave = `${tribunal}:${p.digitos}`;
+		if (vistos.has(chave)) continue;
+		vistos.add(chave);
+		const precedentes = base.porParadigma(p.digitos, tribunal).filter((r) => r.tipo !== "CONTROVERSIA" && r.tipo !== "SIRDR" && !citados.has(r.id));
 		if (precedentes.length) paradigmasCitados.push({ linha: p.linha, mencao: p.mencao, precedentes });
 	}
 

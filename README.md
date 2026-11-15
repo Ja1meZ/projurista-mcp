@@ -77,13 +77,13 @@ Súmulas (ligadas por padrão; desligue em "Ferramentas de súmulas" se não qui
 | `buscar_sumulas` | Pesquisa súmulas por palavras do enunciado, sem diferenciar acentos |
 | `verificar_citacoes_sumulas` | Confere todas as citações de súmula de um texto, palavra por palavra, e alerta para súmula cancelada, revogada ou superada |
 
-Precedentes qualificados do STJ (ligadas por padrão; desligue em "Ferramentas de precedentes qualificados" se não quiser):
+Precedentes qualificados do STJ e do STF (ligadas por padrão; desligue em "Ferramentas de precedentes qualificados" se não quiser):
 
 | Ferramenta | O que faz |
 | --- | --- |
-| `obter_precedente` | Devolve a tese literal de um tema repetitivo, IAC ou tema de relevância do STJ, com a questão julgada, a situação, a ordem de suspensão, os paradigmas e as anotações do tribunal |
+| `obter_precedente` | Devolve a tese literal de um tema repetitivo, IAC ou tema de relevância do STJ, ou de um tema de repercussão geral do STF, com a questão julgada, a situação, a suspensão de processos, os paradigmas e os avisos |
 | `buscar_precedentes` | Pesquisa os precedentes pela questão jurídica e separa as teses transitadas em julgado do que ainda está afetado, sem trânsito ou revisado |
-| `verificar_citacoes_precedentes` | Confere todas as referências a tema e a IAC do STJ em um texto: existência, situação e transcrição da tese, palavra por palavra |
+| `verificar_citacoes_precedentes` | Confere todas as referências a tema do STJ e do STF e a IAC do STJ em um texto: existência, situação e transcrição da tese, palavra por palavra |
 
 Escrita (só com a chave "Permitir escrita" ligada):
 
@@ -123,7 +123,7 @@ claude mcp add projurista-sumulas -- node /caminho/para/projurista-sumulas.mjs
 
 O mesmo arquivo serve na linha de comando, para scripts e ganchos: `node projurista-sumulas.mjs verificar minuta.txt` imprime o relatório e termina com código 1 quando o veredito é "não verificado"; `node projurista-sumulas.mjs obter STJ 7` imprime o enunciado.
 
-## Precedentes qualificados do STJ: saber se o caso tem tema aplicável
+## Precedentes qualificados do STJ e do STF: saber se o caso tem tema aplicável
 
 O plugin traz embutida a planilha oficial de precedentes qualificados do STJ (temas repetitivos, incidentes de assunção de competência, temas de relevância, controvérsias e SIRDR), com a questão submetida a julgamento, a tese, a situação, a ordem de suspensão, os processos paradigma e as anotações do tribunal. Na base de 14/11/2026 são 2.348 registros, dos quais 1.038 com tese transitada em julgado.
 
@@ -135,7 +135,10 @@ Limites que convém conhecer:
 
 - A busca acha precedentes pelo vocabulário; decidir se a tese se aplica aos fatos do processo continua sendo trabalho de quem analisa. Não achar resultado não prova que não exista precedente: repita com outra formulação.
 - Só a tese transitada em julgado é tratada como definitiva. As demais vêm sempre com a situação e o aviso.
-- A base cobre só o STJ. Tema de repercussão geral do STF é relacionado no relatório como fora do escopo, sem conferência.
+- Do STF entram os temas de repercussão geral, da planilha oficial de dados abertos do tribunal (1.501 temas na base de 15/11/2026). Use `tribunal: "STF"` em `obter_precedente`; a busca e a verificação cobrem os dois tribunais. Controle concentrado (ADI, ADC, ADO, ADPF) não está na base.
+- Tema do STF com repercussão geral negada aparece em bloco separado: tem enunciado, mas não é tese de mérito.
+- As fontes do STF cortam as teses muito longas (a planilha em 4.000 caracteres, o portal em 8.000). A base completa pelo portal o que consegue e marca como incompleta a tese que continua cortada (na base de 15/11/2026, Temas 966, 976 e 1234): ela é devolvida com o aviso e sem "citação pronta", e a conferência só alcança o trecho disponível.
+- A base do STF traz caracteres corrompidos em algumas teses ("¿" no lugar de espaço). O texto é guardado como veio; na comparação vale como espaço.
 - Os avisos (modulação de efeitos, remissão a tema do STF, menção a revisão ou superação) são tirados por regra das anotações do STJ: indicam que é preciso ler a anotação, não a substituem.
 - A base é uma fotografia da planilha na data indicada nas configurações do plugin.
 
@@ -158,6 +161,15 @@ npm test && npm run build
 
 O script só usa a biblioteca padrão do Python, copia os textos sem alterá-los e grava ao lado um relatório com o que mudou em relação à base anterior (temas novos, mudança de situação, tese alterada).
 
+Para a base do STF, baixe "Repercussão Geral > Temas > xlsx" em https://transparencia.stf.jus.br/extensions/dados_abertos/dados_abertos.html e rode:
+
+```
+python3 scripts/exportar-base-precedentes-stf.py temas.xlsx --data-fonte AAAA-MM-DD [--complementos pasta]
+npm test && npm run build
+```
+
+`--complementos` aponta uma pasta com a página do tema no portal do STF (`tema-<número>.html`) para as teses que a planilha corta; o cabeçalho do script traz o endereço.
+
 ## Busca semântica com o Smart Connections
 
 A busca padrão (`buscar_notas`) é por palavras. Para pesquisar por significado, instale o plugin Smart Connections pelo diretório da comunidade, deixe-o criar os embeddings do cofre (modelo local, sem chave de API) e pronto: o Projurista MCP detecta o Smart Connections e passa a oferecer `buscar_semantica` ao Claude. O estado aparece no alto das configurações do plugin. Não há configuração adicional, e o Smart Connections é opcional: sem ele, tudo o mais continua funcionando.
@@ -178,7 +190,7 @@ A busca padrão (`buscar_notas`) é por palavras. Para pesquisar por significado
 - Dentro do cofre, o plugin grava `ponte.ps1` na própria pasta (`.obsidian/plugins/projurista-mcp/`), usado apenas no Windows.
 - Sem telemetria, sem anúncios, sem pagamento, sem conta.
 - Código de terceiros: [fflate](https://github.com/101arrowz/fflate) (MIT), usado para montar o pacote `.mcpb`.
-- Dados embutidos: enunciados de súmulas do STF, do STJ e do TJPE, textos oficiais de domínio público, incluídos no próprio `main.js`. As ferramentas de súmulas não acessam a rede nem o cofre. O mesmo vale para a planilha oficial de precedentes qualificados do STJ (temas repetitivos e IAC) e suas três ferramentas.
+- Dados embutidos: enunciados de súmulas do STF, do STJ e do TJPE, textos oficiais de domínio público, incluídos no próprio `main.js`. As ferramentas de súmulas não acessam a rede nem o cofre. O mesmo vale para as planilhas oficiais de precedentes qualificados do STJ (temas repetitivos e IAC) e de temas de repercussão geral do STF e suas três ferramentas.
 
 ## Problemas comuns
 
@@ -220,6 +232,6 @@ Projurista MCP runs a local [MCP](https://modelcontextprotocol.io) server inside
 - Files inside the vault outside the Vault API: `ponte.ps1` is written into the plugin's own folder via the vault adapter; it is the Windows bridge script.
 - No telemetry, no ads, no payment, no account.
 - Third-party code: [fflate](https://github.com/101arrowz/fflate) (MIT), bundled to build the `.mcpb` zip.
-- Bundled data: the official texts of Brazilian court precedent statements ("súmulas" of STF, STJ and TJPE, public-domain official acts) are embedded in `main.js`. The three súmula tools (`obter_sumula`, `buscar_sumulas`, `verificar_citacoes_sumulas`) look them up and check citations in a text deterministically; they use neither the network nor the vault. The official STJ spreadsheet of binding precedents ("temas repetitivos" and IAC) is embedded the same way and served by three more read-only tools (`obter_precedente`, `buscar_precedentes`, `verificar_citacoes_precedentes`). These data sets are why `main.js` is about 5 MB.
+- Bundled data: the official texts of Brazilian court precedent statements ("súmulas" of STF, STJ and TJPE, public-domain official acts) are embedded in `main.js`. The three súmula tools (`obter_sumula`, `buscar_sumulas`, `verificar_citacoes_sumulas`) look them up and check citations in a text deterministically; they use neither the network nor the vault. The official STJ spreadsheet of binding precedents ("temas repetitivos" and IAC) is embedded the same way and served by three more read-only tools (`obter_precedente`, `buscar_precedentes`, `verificar_citacoes_precedentes`). The official STF spreadsheet of "repercussão geral" themes is embedded too and served by the same three tools. These data sets are why `main.js` is about 9 MB.
 
 License: MIT.

@@ -77,15 +77,15 @@ O plugin traz embutidas as súmulas do STF (comuns e vinculantes), do STJ e do T
 
 A conferência é feita pelo programa, não pela inteligência artificial. Ainda assim, quem decide chamar a ferramenta é o Claude: crie o hábito de pedir a verificação antes de assinar. Súmula mais nova que a base aparece como "não encontrada na base"; nesse caso, confira no portal do tribunal.
 
-## Precedentes do STJ: o caso tem tema repetitivo?
+## Precedentes do STJ e do STF: o caso tem tema aplicável?
 
-O plugin também traz embutidos os precedentes qualificados do STJ (temas repetitivos e incidentes de assunção de competência), copiados da planilha oficial do tribunal, com a tese literal e a situação de cada um. Funciona sem internet.
+O plugin também traz embutidos os precedentes qualificados do STJ (temas repetitivos e incidentes de assunção de competência) e os temas de repercussão geral do STF, copiados das planilhas oficiais dos tribunais, com a tese literal e a situação de cada um. Funciona sem internet.
 
 1. Para descobrir se há precedente: descreva a questão e peça "Veja se há tema repetitivo do STJ sobre prescrição em ação de desfalque do PASEP". O Claude usa `buscar_precedentes` e devolve as teses transitadas em julgado e, separadamente, o que pede atenção: tema afetado (com a suspensão determinada), tese ainda sem trânsito e tese revisada.
-2. Para citar: peça "Transcreva a tese do Tema 1.150 do STJ". O Claude usa `obter_precedente` e copia a tese da base.
-3. Para conferir: cole a minuta e peça "Verifique os temas do STJ citados neste texto". O Claude chama `verificar_citacoes_precedentes`, que diz se cada tema existe, se transitou em julgado e se a tese transcrita confere com a oficial, apontando a palavra trocada.
+2. Para citar: peça "Transcreva a tese do Tema 1.150 do STJ" ou "do Tema 793 do STF". O Claude usa `obter_precedente` e copia a tese da base. Diga sempre o tribunal: os dois têm temas com o mesmo número.
+3. Para conferir: cole a minuta e peça "Verifique os temas do STJ e do STF citados neste texto". O Claude chama `verificar_citacoes_precedentes`, que diz se cada tema existe, se transitou em julgado e se a tese transcrita confere com a oficial, apontando a palavra trocada.
 
-A busca encontra os precedentes pelo vocabulário; avaliar se a tese se aplica aos fatos do seu processo é com você. Se nada aparecer, tente outras palavras antes de concluir que não há precedente. Temas do STF (repercussão geral) não estão na base.
+A busca encontra os precedentes pelo vocabulário; avaliar se a tese se aplica aos fatos do seu processo é com você. Se nada aparecer, tente outras palavras antes de concluir que não há precedente. No STF, tema com repercussão geral negada aparece à parte, porque não é tese de mérito, e algumas teses muito longas vêm marcadas como incompletas na fonte: nesses casos, busque o acórdão.
 
 ## Esconder pastas do Claude
 

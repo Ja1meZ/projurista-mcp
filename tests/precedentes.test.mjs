@@ -15,7 +15,7 @@ const saida = async (ferramenta, args) => (await ferramenta.executar(args, {})).
 
 test("a base carrega íntegra e com as contagens da planilha de 14/11/2026", () => {
 	assert.equal(base.adulterados.length, 0);
-	assert.match(base.versao, /^\d{4}\.\d{2}\.\d{2}$/);
+	assert.match(base.versao, /^STJ \d{4}\.\d{2}\.\d{2} · STF \d{4}\.\d{2}\.\d{2}$/);
 	// os totais mudam a cada exportação do STJ: a base tem de ser coerente com a própria cobertura
 	const total = Object.values(base.cobertura).reduce((n, c) => n + c.total, 0);
 	assert.equal(base.todos.length, total);
@@ -126,14 +126,113 @@ test("formas de referência", () => {
 	assert.deepEqual(numeros("o tema central do recurso e o art. 85 do CPC"), []);
 });
 
-test("tema do STF fica fora do escopo e não reprova o texto", () => {
-	const r = verificar("Aplicam-se os Temas 6 e 1.234 do STF e o Tema 793 da repercussão geral.");
-	assert.equal(r.conferencias.length, 0);
-	assert.equal(r.foraDoEscopo.length, 2);
-	assert.equal(r.veredito, "SEM_REFERENCIAS");
+test("temas do STF e do STJ na mesma frase são conferidos cada um na sua base", () => {
+	const r = verificar("Aplicam-se os Temas 6 e 793 do STF e 106 do STJ, além do Tema 339 da repercussão geral.");
+	assert.deepEqual(r.conferencias.map((c) => c.precedente.id), ["STF:RG:6", "STF:RG:793", "STJ:TEMA:106", "STF:RG:339"]);
+	assert.equal(r.foraDoEscopo.length, 0);
+	assert.equal(r.veredito, "INTEGRALMENTE_VERIFICADO");
+	const fora = verificar("Conforme o Tema 23 do TST e o IAC 2 do STF.");
+	assert.equal(fora.conferencias.length, 0);
+	assert.equal(fora.foraDoEscopo.length, 2);
+});
+
+test("STF: base íntegra, contínua e coerente", () => {
+	const stf = base.todos.filter((r) => r.tribunal === "STF");
+	assert.ok(stf.length >= 1501);
+	assert.deepEqual(stf.map((r) => r.numero), stf.map((_, i) => i + 1));
+	assert.ok(stf.every((r) => r.tipo === "RG" && r.id === `STF:RG:${r.numero}`));
+	assert.equal(stf.filter((r) => r.tese === "-" || r.titulo === "NÃO INFORMADO").length, 0);
+	// tese com o tamanho de corte da planilha (4.000) ou do portal (8.000) tem de estar marcada
+	for (const r of stf) {
+		const cortada = r.alertas.some((a) => a.codigo === "TESE_TRUNCADA_NA_FONTE");
+		if (r.tese.length >= 7990 || (r.tese.length >= 3990 && r.tese.length <= 4000)) assert.ok(cortada, r.id);
+	}
+	assert.ok(base.obter("RG", 533).tese.trimEnd().endsWith("ressalvadas decisões transitadas em julgado."));
+	assert.ok(base.obter("RG", 533).alertas.some((a) => a.codigo === "TESE_COMPLETADA_PELO_PORTAL"));
+});
+
+test("STF: toda tese, transcrita entre aspas, confere consigo mesma", () => {
+	const falhas = [];
+	for (const r of base.todos) {
+		if (r.tribunal !== "STF" || !r.tese) continue;
+		const c = verificar(`Aplica-se o Tema ${r.numero} do STF: “${r.tese}”\n`).conferencias[0];
+		if (!c || c.precedente?.id !== r.id || !c.resultado.startsWith("CONFERE")) falhas.push(`${r.id}:${c?.resultado}`);
+	}
+	assert.deepEqual(falhas, []);
+});
+
+test("STF: tese literal, palavra trocada e espaço no lugar do caractere corrompido", () => {
+	const t793 = base.obter("RG", 793);
+	assert.equal(unica(`Tema 793 da repercussão geral: “${t793.tese}”`).veredito, "INTEGRALMENTE_VERIFICADO");
+	const trocada = unica(`Tema 793 do STF: “${t793.tese.replace("solidariamente", "subsidiariamente")}”`);
+	assert.equal(trocada.resultado, "DIVERGENTE");
+	assert.deepEqual(trocada.diferencas, [{ citado: "subsidiariamente", oficial: "solidariamente" }]);
+	const t1234 = base.obter("RG", 1234);
+	assert.ok(t1234.tese.includes("¿"));
+	const item = t1234.tese.slice(t1234.tese.indexOf("1) Para fins"), t1234.tese.indexOf("na forma do art. 292 do CPC.") + 28);
+	assert.ok(item.includes("¿"));
+	assert.equal(unica(`Tema 1.234 do STF: “${item.replace(/¿/g, " ")}”`).resultado, "CONFERE_TRECHO");
+});
+
+test("STF: tese incompleta na fonte confere só até onde a base alcança e não tem citação pronta", async () => {
+	const t = base.obter("RG", 1234);
+	assert.ok(t.alertas.some((a) => a.codigo === "TESE_TRUNCADA_NA_FONTE"));
+	const inteira = unica(`Tema 1234 do STF: “${t.tese}taforma Nacional poderá ser regulamentada. 6) Outro item que a base não tem.”`);
+	assert.equal(inteira.resultado, "CONFERE_TRECHO");
+	assert.equal(inteira.veredito, "VERIFICADO_COM_RESSALVAS");
+	assert.ok(inteira.notas.some((n) => n.includes("o restante não foi conferido")));
+	const ficha = await saida(obterPrecedente, { tribunal: "STF", numero: 1234 });
+	assert.ok(ficha.includes("Citação pronta: NÃO DISPONÍVEL"));
+	assert.ok(!(await saida(obterPrecedente, { tribunal: "STF", numero: 793 })).includes("NÃO DISPONÍVEL"));
+});
+
+test("STF: repercussão geral negada, mérito pendente com suspensão nacional e cancelado", () => {
+	const negada = base.todos.find((r) => r.situacao === "rg_negada" && r.tese);
+	const c1 = unica(`Incide o Tema ${negada.numero} do STF.`);
+	assert.equal(c1.veredito, "VERIFICADO_COM_RESSALVAS");
+	assert.ok(c1.notas.some((n) => n.includes("repercussão geral negada")));
+	const pendente = base.todos.find((r) => r.tribunal === "STF" && r.situacao === "afetado" && r.alertas.some((a) => a.codigo === "SUSPENSAO_NACIONAL_VIGENTE"));
+	const c2 = unica(`A matéria aguarda o Tema ${pendente.numero} da repercussão geral.`);
+	assert.equal(c2.veredito, "VERIFICADO_COM_RESSALVAS");
+	assert.ok(c2.notas.some((n) => n.includes("Suspensão nacional vigente")), c2.notas.join(" | "));
+	const cancelado = base.todos.find((r) => r.tribunal === "STF" && r.situacao === "cancelado");
+	assert.equal(unica(`Aplica-se o Tema ${cancelado.numero} do STF.`).veredito, "NAO_VERIFICADO");
+});
+
+test("tema sem tribunal é decidido pelo texto transcrito; sem transcrição, lista os dois candidatos", () => {
+	const stf = unica(`Conforme o Tema 793: “${base.obter("RG", 793).tese}”`);
+	assert.equal(stf.precedente.id, "STF:RG:793");
+	const stj = unica(`Conforme o Tema 1.150: “${tema(1150).tese}”`);
+	assert.equal(stj.precedente.id, "STJ:TEMA:1150");
+	const c = unica("Aplica-se o Tema 106.");
+	assert.equal(c.resultado, "AMBIGUA");
+	assert.ok(c.notas[0].includes("Tema Repetitivo n. 106 do STJ") && c.notas[0].includes("Tema n. 106 da Repercussão Geral do STF"));
+});
+
+test("STF nas ferramentas: obter, buscar por tribunal e por paradigma", async () => {
+	const t6 = await saida(obterPrecedente, { tribunal: "STF", numero: 6 });
+	assert.ok(t6.startsWith("Tema n. 6 da Repercussão Geral do STF — situação no STF: RG reconhecida - mérito julgado"));
+	assert.ok(t6.includes(base.obter("RG", 6).tese));
+	// sem tribunal, o padrão continua sendo o STJ
+	assert.ok((await saida(obterPrecedente, { numero: 6 })).startsWith("Tema Repetitivo n. 6 do STJ"));
+	const saude = await saida(buscarPrecedentes, { termo: "medicamento não incorporado SUS" });
+	assert.ok(saude.includes("STF:RG:1234") && saude.includes("STF:RG:6") && saude.includes("STJ:TEMA:106"));
+	const soStf = await saida(buscarPrecedentes, { termo: "medicamento não incorporado SUS", tribunal: "STF" });
+	assert.ok(soStf.includes("STF:RG:6") && !soStf.includes("STJ:TEMA:"));
+	const soStj = await saida(buscarPrecedentes, { termo: "medicamento não incorporado SUS", tribunal: "STJ" });
+	assert.ok(soStj.includes("STJ:TEMA:106") && !soStj.includes("STF:RG:"));
+	assert.ok((await saida(buscarPrecedentes, { termo: "RE 1366243" })).includes("STF:RG:1234"));
+	const negada = base.todos.find((r) => r.situacao === "rg_negada" && r.tese);
+	const res = await saida(buscarPrecedentes, { termo: negada.titulo.slice(0, 140), tribunal: "STF" });
+	const bloco = res.indexOf("SEM REPERCUSSÃO GERAL (STF)");
+	assert.ok(bloco > 0 && res.indexOf(negada.id) > bloco, res.slice(0, 400));
+	const tributario = await saida(buscarPrecedentes, { termo: "ICMS base de cálculo", ramo: "tributário", limite: 30 });
+	assert.ok(tributario.includes("STF:RG:") && !tributario.includes("STJ:TEMA:"));
 });
 
 test("tema sem tribunal: herda de outra referência; sozinho, fica como ressalva", () => {
+	const herdaStf = verificar("O Tema 793 do STF fixou a solidariedade. Mais adiante, o Tema 793 foi aplicado.");
+	assert.deepEqual(herdaStf.conferencias.map((c) => c.precedente.id), ["STF:RG:793", "STF:RG:793"]);
 	const r = verificar("O Tema 1.150 do STJ fixou o prazo decenal. Mais adiante, o Tema 1.150 foi reafirmado.");
 	assert.deepEqual(r.conferencias.map((c) => c.resultado), ["SEM_TRANSCRICAO", "SEM_TRANSCRICAO"]);
 	assert.equal(r.veredito, "INTEGRALMENTE_VERIFICADO");
@@ -152,7 +251,7 @@ test("situação: cancelado sem ressalva reprova; afetado e sem trânsito são r
 	const afetado = base.todos.find((r) => r.tipo === "TEMA" && r.situacao_original === "Afetado" && r.suspensao);
 	const c2 = unica(`A matéria está afetada no Tema ${afetado.numero} do STJ.`);
 	assert.equal(c2.veredito, "VERIFICADO_COM_RESSALVAS");
-	assert.ok(c2.notas.some((n) => n.includes("Suspensão determinada")), c2.notas.join(" | "));
+	assert.ok(c2.notas.some((n) => n.includes("Suspensão: ")), c2.notas.join(" | "));
 	const pendente = base.todos.find((r) => r.tipo === "TEMA" && r.situacao_original === "Acórdão Publicado - RE Pendente");
 	const c3 = unica(`Tema ${pendente.numero} do STJ: “${pendente.tese}”`);
 	assert.ok(c3.resultado.startsWith("CONFERE"));
