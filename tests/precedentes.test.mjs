@@ -15,14 +15,22 @@ const saida = async (ferramenta, args) => (await ferramenta.executar(args, {})).
 
 test("a base carrega íntegra e com as contagens da planilha de 14/11/2026", () => {
 	assert.equal(base.adulterados.length, 0);
-	assert.equal(base.versao, "2026.11.14");
-	assert.equal(base.todos.length, 2348);
-	assert.equal(base.cobertura.TEMA.total, 1473);
-	assert.equal(base.cobertura.IAC.total, 22);
-	assert.equal(base.cobertura.CONTROVERSIA.total, 830);
-	assert.equal(base.todos.filter((r) => r.situacao === "transitado").length, 1038);
-	assert.equal(base.todos.filter((r) => r.tese).length, 1182);
-	assert.equal(new Set(base.todos.map((r) => r.id)).size, 2348);
+	assert.match(base.versao, /^\d{4}\.\d{2}\.\d{2}$/);
+	// os totais mudam a cada exportação do STJ: a base tem de ser coerente com a própria cobertura
+	const total = Object.values(base.cobertura).reduce((n, c) => n + c.total, 0);
+	assert.equal(base.todos.length, total);
+	assert.equal(new Set(base.todos.map((r) => r.id)).size, total);
+	for (const [tipo, c] of Object.entries(base.cobertura)) {
+		const doTipo = base.todos.filter((r) => r.tipo === tipo);
+		assert.equal(doTipo.length, c.total, tipo);
+		assert.equal(doTipo.filter((r) => r.tese).length, c.com_tese, tipo);
+		assert.equal(doTipo.filter((r) => r.situacao === "transitado").length, c.situacao.transitado ?? 0, tipo);
+	}
+	// pisos da planilha de 14/11/2026: a base não pode encolher
+	assert.ok(base.cobertura.TEMA.total >= 1473 && base.cobertura.IAC.total >= 22);
+	assert.ok(base.todos.filter((r) => r.situacao === "transitado").length >= 1038);
+	// aviso do STJ no lugar da tese não é tese
+	assert.equal(base.todos.filter((r) => /^\W*aguardando/i.test(r.tese)).length, 0);
 });
 
 test("registro adulterado é descartado na carga", async () => {

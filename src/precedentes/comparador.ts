@@ -44,6 +44,7 @@ const RE_RETICENCIAS = /\s*(?:\(\s*(?:\.{3}|…)\s*\)|\[\s*(?:\.{3}|…)\s*\]|\.
 const RE_RESSALVA = /cancelad|revogad|superad|revisad|revis[ãa]o|n[ãa]o (?:mais )?(?:vig|subsist)|ent[ãa]o vigente|j[áa] n[ãa]o/i;
 
 export const TEXTO_ALERTA: Record<string, (detalhe?: string) => string> = {
+	TESE_PENDENTE_DE_PUBLICACAO: (d) => `O STJ ainda não publicou a tese deste precedente (no campo da tese consta: "${d ?? ""}").`,
 	SEM_TESE_NA_FONTE: () => "O STJ não registra tese neste precedente: leia as anotações.",
 	POSSIVEL_REVISAO_DE_TESE: () => "Tema afetado para possível revisão da tese.",
 	MODULACAO_DE_EFEITOS: () => "As anotações do STJ mencionam modulação de efeitos: confira o marco temporal antes de aplicar.",
@@ -60,7 +61,7 @@ export function textoAlerta(a: AlertaPrecedente): string {
 }
 
 /** Alertas que pedem leitura das anotações antes de aplicar a tese (os demais são informativos). */
-const ALERTAS_DE_RESSALVA = new Set(["SEM_TESE_NA_FONTE", "POSSIVEL_REVISAO_DE_TESE", "MENCIONA_SUPERACAO_OU_REVISAO"]);
+const ALERTAS_DE_RESSALVA = new Set(["SEM_TESE_NA_FONTE", "TESE_PENDENTE_DE_PUBLICACAO", "POSSIVEL_REVISAO_DE_TESE", "MENCIONA_SUPERACAO_OU_REVISAO"]);
 
 function semPontoFinal(s: string): string {
 	return s.replace(/[.\s]+$/, "");

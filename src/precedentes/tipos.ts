@@ -31,6 +31,8 @@ export interface RegistroPrecedente {
 	/** Tese firmada, literal como publicada pelo STJ. Vazia quando não há tese. */
 	tese: string;
 	sha256_tese: string;
+	/** Aviso que o STJ põe no lugar da tese enquanto ela não é publicada ("*Aguardando a publicação…"). */
+	observacao_tese?: string;
 	/** Anotações do STJ (NUGEPNAC), literais. */
 	anotacoes: string;
 	paradigmas: string[];

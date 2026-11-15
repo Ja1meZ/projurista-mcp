@@ -3,7 +3,12 @@
 
 Fonte: https://processo.stj.jus.br/repetitivos/temas_repetitivos/ (botão de exportação, formato XLSX).
 
-    python3 scripts/exportar-base-precedentes-stj.py <planilha.xlsx> --data-fonte AAAA-MM-DD
+    python3 scripts/exportar-base-precedentes-stj.py <planilha.xlsx> [outra.xlsx ...] --data-fonte AAAA-MM-DD
+
+No site: Pesquisa > marcar os cinco tipos de precedente (a listagem padrão não traz SIRDR) >
+"Exportar planilha" > "Selecionar todos" > "Exportar". Se a exportação for feita em partes (por
+exemplo, uma planilha por tipo), passe todas: os registros são reunidos, e registro repetido com
+conteúdo diferente entre as planilhas é erro.
 
 Só biblioteca padrão. O texto da questão, da tese e das anotações é copiado como está na planilha
 (apenas os espaços das pontas são retirados). Nada é reescrito, resumido ou normalizado: a
@@ -24,11 +29,16 @@ import zipfile
 
 M = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 
-CABECALHO = [
+# Colunas da exportação ("Exportar planilha" > "Selecionar todos"). A ordem das colunas na planilha
+# depende da ordem em que os campos foram selecionados no site: a leitura é pelo nome da coluna.
+OBRIGATORIAS = [
     "Tipo de precedente", "Número", "Questão", "Órgão julgador", "Primeiro relator", "Relator atual",
     "Anotações", "Tese", "Processos paradigma", "Situação atual", "Data da situação", "Suspensão",
-    "N. únicos paradigma", "N. Registros paradigma", "Quantidade",
 ]
+OPCIONAIS = ["N. únicos paradigma", "N. Registros paradigma", "Quantidade"]
+
+# Texto que o STJ põe no campo da tese enquanto ela não está publicada: não é tese.
+RE_TESE_PENDENTE = re.compile(r"^\W*aguardando\b", re.I)
 
 TIPOS = {"Tema": "TEMA", "IAC": "IAC", "Controvérsia": "CONTROVERSIA", "Relevância": "RELEVANCIA", "SIRDR": "SIRDR"}
 
@@ -128,7 +138,9 @@ def alertas_de(registro):
     tese = registro["tese"]
     junto = anot + "\n" + tese
     saida = []
-    if not tese and registro["situacao"] in ("transitado", "tese_sem_transito", "revisado"):
+    if registro["observacao_tese"]:
+        saida.append({"codigo": "TESE_PENDENTE_DE_PUBLICACAO", "detalhe": registro["observacao_tese"]})
+    elif not tese and registro["situacao"] in ("transitado", "tese_sem_transito", "revisado"):
         saida.append({"codigo": "SEM_TESE_NA_FONTE"})
     if "possível revisão" in registro["situacao_original"].lower():
         saida.append({"codigo": "POSSIVEL_REVISAO_DE_TESE"})
@@ -155,19 +167,43 @@ def alertas_de(registro):
     return saida
 
 
-def montar(linhas):
+def montar(planilhas):
+    """Reúne os registros de uma ou mais planilhas (cada uma: lista de linhas, a primeira é o cabeçalho)."""
+    registros, desconhecidas, por_chave = [], collections.Counter(), {}
+    for linhas in planilhas:
+        parte, desc = montar_uma(linhas)
+        desconhecidas.update(desc)
+        for r in parte:
+            anterior = por_chave.get(r["id"])
+            if anterior is None:
+                por_chave[r["id"]] = r
+                registros.append(r)
+            elif anterior != r:
+                erro(f"{r['id']} aparece em mais de uma planilha com conteúdo diferente.")
+    ordem = {t: i for i, t in enumerate(["TEMA", "IAC", "RELEVANCIA", "SIRDR", "CONTROVERSIA"])}
+    registros.sort(key=lambda r: (ordem[r["tipo"]], r["numero"]))
+    return registros, desconhecidas
+
+
+def montar_uma(linhas):
     if not linhas:
         erro("planilha vazia.")
     cabecalho = [(c or "").strip() for c in linhas[0]]
-    if cabecalho != CABECALHO:
-        erro(f"cabeçalho diferente do esperado.\n  esperado: {CABECALHO}\n  lido:     {cabecalho}")
+    faltam = [c for c in OBRIGATORIAS if c not in cabecalho]
+    estranhas = [c for c in cabecalho if c and c not in OBRIGATORIAS + OPCIONAIS]
+    if faltam or estranhas or len(set(cabecalho)) != len(cabecalho):
+        erro(f"cabeçalho diferente do esperado.\n  faltam: {faltam}\n  desconhecidas ou repetidas: {estranhas}\n  lido: {cabecalho}\n"
+             "Exporte de novo pelo site, com todos os campos selecionados.")
+    posicao = {nome: i for i, nome in enumerate(cabecalho)}
     registros = []
     vistos = set()
     desconhecidas = collections.Counter()
     for n, bruta in enumerate(linhas[1:], start=2):
-        linha = list(bruta) + [None] * (len(CABECALHO) - len(bruta))
-        if not any(linha):
+        cheia = list(bruta) + [None] * (len(cabecalho) - len(bruta))
+        if not any(cheia):
             continue
+        # reordena para a ordem canônica; coluna opcional ausente fica vazia
+        linha = [cheia[posicao[nome]] if nome in posicao else None for nome in OBRIGATORIAS + OPCIONAIS]
         tipo_bruto = (linha[0] or "").strip()
         if tipo_bruto not in TIPOS:
             erro(f"linha {n}: tipo de precedente desconhecido: {tipo_bruto!r}")
@@ -188,6 +224,9 @@ def montar(linhas):
             desconhecidas[situacao_original] += 1
             situacao = "outro"
         tese = literal(linha[7])
+        observacao_tese = ""
+        if RE_TESE_PENDENTE.match(tese):
+            observacao_tese, tese = tese, ""
         data = literal(linha[10])[:10]
         if data and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", data):
             erro(f"linha {n}: data da situação em formato inesperado: {linha[10]!r}")
@@ -204,6 +243,7 @@ def montar(linhas):
             "questao": literal(linha[2]),
             "tese": tese,
             "sha256_tese": hashlib.sha256(tese.encode("utf-8")).hexdigest() if tese else "",
+            "observacao_tese": observacao_tese,
             "anotacoes": literal(linha[6]),
             "paradigmas": lista(linha[8]),
             "suspensao": literal(linha[11]),
@@ -212,8 +252,6 @@ def montar(linhas):
         }
         registro["alertas"] = alertas_de(registro)
         registros.append(registro)
-    ordem = {t: i for i, t in enumerate(["TEMA", "IAC", "RELEVANCIA", "SIRDR", "CONTROVERSIA"])}
-    registros.sort(key=lambda r: (ordem[r["tipo"]], r["numero"]))
     return registros, desconhecidas
 
 
@@ -247,16 +285,16 @@ def diferencas(anterior, registros):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("planilha")
+    ap.add_argument("planilha", nargs="+")
     ap.add_argument("--data-fonte", required=True, help="data em que a planilha foi exportada do site do STJ (AAAA-MM-DD)")
     ap.add_argument("--saida", default=str(pathlib.Path(__file__).resolve().parent.parent / "dados" / "precedentes-stj.json"))
     args = ap.parse_args()
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", args.data_fonte):
         erro("--data-fonte deve estar no formato AAAA-MM-DD.")
-    planilha = pathlib.Path(args.planilha)
+    planilhas = [pathlib.Path(p) for p in args.planilha]
     saida = pathlib.Path(args.saida)
 
-    registros, desconhecidas = montar(ler_planilha(planilha))
+    registros, desconhecidas = montar([ler_planilha(p) for p in planilhas])
     cob = cobertura(registros)
     base = {
         "versao_base": args.data_fonte.replace("-", "."),
@@ -266,8 +304,8 @@ def main():
             "orgao": "Superior Tribunal de Justiça — Precedentes Qualificados",
             "url": "https://processo.stj.jus.br/repetitivos/temas_repetitivos/",
             "data_fonte": args.data_fonte,
-            "arquivo": planilha.name,
-            "sha256_arquivo": hashlib.sha256(planilha.read_bytes()).hexdigest(),
+            "arquivo": ", ".join(p.name for p in planilhas),
+            "sha256_arquivo": ", ".join(hashlib.sha256(p.read_bytes()).hexdigest() for p in planilhas),
         },
         "cobertura": cob,
     }
@@ -283,7 +321,7 @@ def main():
 
     nomes = {"TEMA": "Temas repetitivos", "IAC": "IAC", "RELEVANCIA": "Relevância", "SIRDR": "SIRDR", "CONTROVERSIA": "Controvérsias"}
     rel = [f"# Ingestão dos precedentes qualificados do STJ — fonte de {args.data_fonte}", "",
-           f"- Planilha: `{planilha.name}` (sha256 `{base['fonte']['sha256_arquivo']}`)",
+           f"- Planilha(s): `{base['fonte']['arquivo']}` (sha256 `{base['fonte']['sha256_arquivo']}`)",
            f"- Registros: {len(registros)}; com tese: {sum(1 for r in registros if r['tese'])}; transitados em julgado: {sum(1 for r in registros if r['situacao'] == 'transitado')}", "",
            "## Cobertura", ""]
     for tipo, c in cob.items():
