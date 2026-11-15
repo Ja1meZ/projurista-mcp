@@ -22271,18 +22271,22 @@
    "tribunal": "TJPE",
    "tipo": "comum",
    "numero": 4,
-   "enunciado": "O certificado de registro de veículo (CRLV) não constitui documento indispensável à propositura da ação de busca e apreensão aforada com fundamento do Decreto-Lei 911/69.",
+   "enunciado": "O certificado de registro de veículo (CRLV) não constitui documento indispensável à propositura da ação de busca e apreensão aforada com fundamento no Decreto-Lei 911/69.",
    "situacao": "vigente",
-   "observacao": "As fontes oficiais divergem em palavras — Livro de Súmulas do TJPE: «do» × «no»; «69» × «1969». As fontes oficiais divergem em palavras — documento do portal de 2021: «do» × «no».",
+   "observacao": "Redação fixada pelo curador em 15/11/2026: “com fundamento no Decreto-Lei 911/69”, como no Livro de Súmulas do TJPE e no documento do portal de 2021; a compilação do CEJ/TJPE de 2023 traz “com fundamento do Decreto-Lei 911/69”. As fontes oficiais divergem em palavras — Livro de Súmulas do TJPE: «69» × «1969».",
    "data_aprovacao": "03/05/2007",
    "referencia_publicacao": "DPJ 88 15.05.2007 p. 2",
    "orgao_julgador": "SEÇÃO CÍVEL",
-   "referencia_oficial": "Incidentes de Assunção de Competência, Incidentes de Resolução de Demandas Repetitivas e Enunciados do Tribunal de Justiça de Pernambuco, CEJ/TJPE, 2023, ISBN 978-65-994744-3-9",
+   "referencia_oficial": "Incidentes de Assunção de Competência, Incidentes de Resolução de Demandas Repetitivas e Enunciados do Tribunal de Justiça de Pernambuco, CEJ/TJPE, 2023, ISBN 978-65-994744-3-9; confirmado palavra por palavra em: Súmulas do TJPE e Orientações do Órgão Especial (2021)",
    "url_fonte": "https://portal.tjpe.jus.br/web/portal/servicos/consulta/sumulas",
    "data_fonte": "2026-11-15",
-   "consenso": "divergência entre fontes oficiais",
-   "sha256_texto": "44e386c57b12649b2794b69073399a83c0a2e123b26fb30c7d3d892a6ac8affd",
+   "consenso": "maioria",
+   "sha256_texto": "6a54a8b09480f8309a910c5fb99afede514b82356decca5f5e92a8f59f98a278",
    "variantes": [
+    {
+     "fonte": "compilação do CEJ/TJPE de 2023",
+     "texto": "O certificado de registro de veículo (CRLV) não constitui documento indispensável à propositura da ação de busca e apreensão aforada com fundamento do Decreto-Lei 911/69."
+    },
     {
      "fonte": "Livro de Súmulas do TJPE",
      "texto": "O certificado de registro de veículo (CRLV) não constitui documento indispensável à propositura da ação de busca e apreensão aforada com fundamento no Decreto-lei 911/1969."
